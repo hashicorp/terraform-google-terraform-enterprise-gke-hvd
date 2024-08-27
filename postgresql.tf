@@ -1,3 +1,6 @@
+# Copyright (c) HashiCorp, Inc.
+# SPDX-License-Identifier: MPL-2.0
+
 #------------------------------------------------------------------------------
 # Google secret manager - TFE database password lookup
 #------------------------------------------------------------------------------

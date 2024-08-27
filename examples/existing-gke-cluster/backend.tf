@@ -1,3 +1,6 @@
+# Copyright (c) HashiCorp, Inc.
+# SPDX-License-Identifier: MPL-2.0
+
 // This is a placeholder file for the remote backend configuration.
 // When deploying this module in production, you should use the GCS remote backend.
 // https://developer.hashicorp.com/terraform/language/settings/backends/gcs
