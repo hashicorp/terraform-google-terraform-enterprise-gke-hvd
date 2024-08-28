@@ -1,0 +1,21 @@
+# --- Common --- #
+project_id           = "<gcp-project-id>"
+region               = "<gcp-region>"
+friendly_name_prefix = "<sandbox>" # typically either environment (e.g. 'sandbox', 'prod') or team name
+
+# --- TFE config settings --- #
+tfe_fqdn                   = "<tfe.example.com>"
+create_helm_overrides_file = true
+
+# --- Networking --- #
+vpc_name           = "<my-tfe-vpc>"
+create_tfe_lb_ip   = <true>
+tfe_lb_subnet_name = "<my-tfe-lb-subnet>"
+tfe_lb_ip_address  = "<10.0.1.10>" # Available IP address from `tfe_lb_subnet_name` subnet
+
+# --- DNS (optional) --- #
+create_tfe_cloud_dns_record = <true>
+cloud_dns_zone_name         = "<dns-zone-name>"
+
+# --- Database --- #
+tfe_database_password_secret_version = "<tfe_database_password_secret_name>"
