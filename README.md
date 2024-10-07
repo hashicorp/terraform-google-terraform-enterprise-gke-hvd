@@ -66,7 +66,7 @@ If you plan to create a new GKE cluster using this module, then you may skip thi
 
 1. Create/configure/validate the applicable [prerequisites](#prerequisites).
 
-2. Nested within the [examples](./examples/) directory are subdirectories that contain ready-made Terraform configurations of example scenarios for how to call and deploy this module. To get started, choose an example scenario. If you are starting without an existing GKE cluster, then you should select the [new-gke](examples/new-gke) example scenario.
+2. Nested within the [examples](https://github.com/hashicorp/terraform-google-terraform-enterprise-gke-hvd/tree/main/examples/) directory are subdirectories that contain ready-made Terraform configurations of example scenarios for how to call and deploy this module. To get started, choose an example scenario. If you are starting without an existing GKE cluster, then you should select the [new-gke](examples/new-gke) example scenario.
 
 3. Copy all of the Terraform files from your example scenario of choice into a new destination directory to create your Terraform configuration that will manage your TFE deployment. If you are not sure where to create this new directory, it is common for users to create an `environments/` directory at the root of this repo (once you have cloned it down locally), and then a subdirectory for each TFE instance deployment, like so:
 
@@ -86,7 +86,7 @@ If you plan to create a new GKE cluster using this module, then you may skip thi
             ├── terraform.tfvars
             └── variables.tf
     ```
-    
+
     >📝 Note: In this example, the user will have two separate TFE deployments; one for their `sandbox` environment, and one for their `production` environment. This is recommended, but not required.
 
 4. (Optional) Uncomment and update the [GCS remote state backend](https://developer.hashicorp.com/terraform/language/settings/backends/gcs) configuration provided in the `backend.tf` file with your own custom values. While this step is highly recommended, it is technically not required to use a remote backend config for your TFE deployment (if you are in a sandbox environment, for example).
@@ -100,7 +100,7 @@ If you plan to create a new GKE cluster using this module, then you may skip thi
 ## Post Steps
 
 7. Authenticate to your GKE cluster:
-   
+
    ```shell
    gcloud auth login
    gcloud config set project <PROJECT_ID>
@@ -108,16 +108,16 @@ If you plan to create a new GKE cluster using this module, then you may skip thi
    ```
 
 8. Create the Kubernetes namespace for TFE:
-   
+
    ```shell
    kubectl create namespace tfe
    ```
-   
+
    >📝 Note: You can name it something different than `tfe` if you prefer. If you do name it differently, be sure to update your value of the `tfe_kube_namespace` and `tfe_kube_svc_account` input variables accordingly (the Helm chart will automatically create a Kubernetes service account for TFE based on the name of the namespace).
 
-9. Create the required secrets for your TFE deployment within your new Kubernetes namespace for TFE. There are several ways to do this, whether it be from the CLI via `kubectl`, or another method involving a third-party secrets helper/tool. See the [Kubernetes-Secrets](./docs/kubernetes-secrets.md) doc for details on the required secrets and how to create them.
+9. Create the required secrets for your TFE deployment within your new Kubernetes namespace for TFE. There are several ways to do this, whether it be from the CLI via `kubectl`, or another method involving a third-party secrets helper/tool. See the [Kubernetes-Secrets](https://github.com/hashicorp/terraform-google-terraform-enterprise-gke-hvd/tree/main/docs/kubernetes-secrets.md) doc for details on the required secrets and how to create them.
 
-10. This Terraform module will automatically generate a Helm overrides file within your Terraform working directory named `./helm/module_generated_helm_overrides.yaml`. This Helm overrides file contains values interpolated from some of the infrastructure resources that were created by Terraform in step 6. Within the Helm overrides file, update or validate the values for the remaining settings that are enclosed in the `<>` characters. You may also add any additional configuration settings into your Helm overrides file at this time (see the [Helm-Overrides](./docs/helm-overrides.md) doc for more details).
+10. This Terraform module will automatically generate a Helm overrides file within your Terraform working directory named `./helm/module_generated_helm_overrides.yaml`. This Helm overrides file contains values interpolated from some of the infrastructure resources that were created by Terraform in step 6. Within the Helm overrides file, update or validate the values for the remaining settings that are enclosed in the `<>` characters. You may also add any additional configuration settings into your Helm overrides file at this time (see the [Helm-Overrides](https://github.com/hashicorp/terraform-google-terraform-enterprise-gke-hvd/tree/main/docs/helm-overrides.md) doc for more details).
 
 11. Now that you have customized your `module_generated_helm_overrides.yaml` file, rename it to something more applicable to your deployment, such as `prod_tfe_overrides.yaml` (or whatever you prefer). Then, within your `terraform.tfvars` file, set the value of `create_helm_overrides_file` to `false`, as we no longer want the Terraform module to manage this file or generate a new one on a subsequent Terraform run.
 
@@ -137,7 +137,7 @@ If you plan to create a new GKE cluster using this module, then you may skip thi
     ```
 
 14. Verify the TFE pod(s) are starting successfully:
-    
+
     View the events within the namespace:
 
     ```shell
@@ -145,33 +145,33 @@ If you plan to create a new GKE cluster using this module, then you may skip thi
     ```
 
     View the pod(s) within the namespace:
-    
+
     ```shell
     kubectl get pods --namespace <TFE_NAMESPACE>
     ```
 
     View the logs from the pod:
-    
+
     ```shell
     kubectl logs <TFE_POD_NAME> --namespace <TFE_NAMESPACE> -f
     ```
 
 15. If you did not create a DNS record during your Terraform deployment in the previous section (via the boolean input `create_tfe_cloud_dns_record`), then create a DNS record for your TFE FQDN that resolves to your TFE load balancer, depending on how the load balancer was configured during your TFE deployment:
-    
+
     - If you are using a Kubernetes service of type `LoadBalancer` (what the module-generated Helm overrides defaults to), the DNS record should resolve to the static IP address of your TFE load balancer:
-      
+
       ```shell
       kubectl get services --namespace <TFE_NAMESPACE>
       ```
-    
+
     - If you are using a custom Kubernetes ingress (meaning you customized your Helm overrides in step 10), the DNS record should resolve to the IP address of your ingress controller load balancer:
-      
+
       ```shell
       kubectl get ingress <INGRESS_NAME> --namespace <INGRESS_NAMESPACE>
       ```
 
 16. Verify the TFE application is ready:
-      
+
     ```shell
     curl https://<TFE_FQDN>/_health_check
     ```
@@ -184,12 +184,12 @@ If you plan to create a new GKE cluster using this module, then you may skip thi
 
 Below are links to various docs related to the customization and management of your TFE deployment:
 
- - [Deployment Customizations](./docs/deployment-customizations.md)
- - [Helm Overrides](./docs/helm-overrides.md)
- - [TFE Version Upgrades](./docs/tfe-version-upgrades.md)
- - [TFE TLS Certificate Rotation](./docs/tfe-cert-rotation.md)
- - [TFE Configuration Settings](./docs/tfe-config-settings.md)
- - [TFE Kubernetes Secrets](./docs-kubernetes-secrets.md)
+ - [Deployment Customizations](https://github.com/hashicorp/terraform-google-terraform-enterprise-gke-hvd/tree/main/docs/deployment-customizations.md)
+ - [Helm Overrides](https://github.com/hashicorp/terraform-google-terraform-enterprise-gke-hvd/tree/main/docs/helm-overrides.md)
+ - [TFE Version Upgrades](https://github.com/hashicorp/terraform-google-terraform-enterprise-gke-hvd/tree/main/docs/tfe-version-upgrades.md)
+ - [TFE TLS Certificate Rotation](https://github.com/hashicorp/terraform-google-terraform-enterprise-gke-hvd/tree/main/docs/tfe-cert-rotation.md)
+ - [TFE Configuration Settings](https://github.com/hashicorp/terraform-google-terraform-enterprise-gke-hvd/tree/main/docs/tfe-config-settings.md)
+ - [TFE Kubernetes Secrets](https://github.com/hashicorp/terraform-google-terraform-enterprise-gke-hvd/tree/main/docs-kubernetes-secrets.md)
 
 ---
 
