@@ -52,25 +52,23 @@ Terraform module aligned with HashiCorp Validated Designs (HVD) to deploy Terraf
 
 GCP Secret Manager secrets:
 
- - PostgreSQL database password secret
+- PostgreSQL database password secret
 
 ### Compute (optional)
 
 If you plan to create a new GKE cluster using this module, then you may skip this section. Otherwise:
 
- - GKE cluster
-
----
+- GKE cluster
 
 ## Usage
 
 1. Create/configure/validate the applicable [prerequisites](#prerequisites).
 
-2. Nested within the [examples](./examples/) directory are subdirectories that contain ready-made Terraform configurations of example scenarios for how to call and deploy this module. To get started, choose an example scenario. If you are starting without an existing GKE cluster, then you should select the [new-gke](examples/new-gke) example scenario.
+2. Nested within the [examples](https://github.com/hashicorp/terraform-google-terraform-enterprise-gke-hvd/tree/main/examples/) directory are subdirectories that contain ready-made Terraform configurations of example scenarios for how to call and deploy this module. To get started, choose an example scenario. If you are starting without an existing GKE cluster, then you should select the [new-gke](examples/new-gke) example scenario.
 
 3. Copy all of the Terraform files from your example scenario of choice into a new destination directory to create your Terraform configuration that will manage your TFE deployment. If you are not sure where to create this new directory, it is common for users to create an `environments/` directory at the root of this repo (once you have cloned it down locally), and then a subdirectory for each TFE instance deployment, like so:
 
-    ```
+    ```pre
     .
     └── environments
         ├── production
@@ -86,7 +84,7 @@ If you plan to create a new GKE cluster using this module, then you may skip thi
             ├── terraform.tfvars
             └── variables.tf
     ```
-    
+
     >📝 Note: In this example, the user will have two separate TFE deployments; one for their `sandbox` environment, and one for their `production` environment. This is recommended, but not required.
 
 4. (Optional) Uncomment and update the [GCS remote state backend](https://developer.hashicorp.com/terraform/language/settings/backends/gcs) configuration provided in the `backend.tf` file with your own custom values. While this step is highly recommended, it is technically not required to use a remote backend config for your TFE deployment (if you are in a sandbox environment, for example).
@@ -97,10 +95,10 @@ If you plan to create a new GKE cluster using this module, then you may skip thi
 
 **The TFE infrastructure resources have now been created. Next comes the application layer portion of the deployment (which we refer to as the Post Steps), which will involve interacting with your GKE cluster via `kubectl` and installing the TFE application via `helm`.**
 
-## Post Steps
+## Post steps
 
 7. Authenticate to your GKE cluster:
-   
+
    ```shell
    gcloud auth login
    gcloud config set project <PROJECT_ID>
@@ -108,16 +106,16 @@ If you plan to create a new GKE cluster using this module, then you may skip thi
    ```
 
 8. Create the Kubernetes namespace for TFE:
-   
+
    ```shell
    kubectl create namespace tfe
    ```
-   
+
    >📝 Note: You can name it something different than `tfe` if you prefer. If you do name it differently, be sure to update your value of the `tfe_kube_namespace` and `tfe_kube_svc_account` input variables accordingly (the Helm chart will automatically create a Kubernetes service account for TFE based on the name of the namespace).
 
-9. Create the required secrets for your TFE deployment within your new Kubernetes namespace for TFE. There are several ways to do this, whether it be from the CLI via `kubectl`, or another method involving a third-party secrets helper/tool. See the [Kubernetes-Secrets](./docs/kubernetes-secrets.md) doc for details on the required secrets and how to create them.
+9. Create the required secrets for your TFE deployment within your new Kubernetes namespace for TFE. There are several ways to do this, whether it be from the CLI via `kubectl`, or another method involving a third-party secrets helper/tool. See the [Kubernetes-Secrets](https://github.com/hashicorp/terraform-google-terraform-enterprise-gke-hvd/tree/main/docs/kubernetes-secrets.md) doc for details on the required secrets and how to create them.
 
-10. This Terraform module will automatically generate a Helm overrides file within your Terraform working directory named `./helm/module_generated_helm_overrides.yaml`. This Helm overrides file contains values interpolated from some of the infrastructure resources that were created by Terraform in step 6. Within the Helm overrides file, update or validate the values for the remaining settings that are enclosed in the `<>` characters. You may also add any additional configuration settings into your Helm overrides file at this time (see the [Helm-Overrides](./docs/helm-overrides.md) doc for more details).
+10. This Terraform module will automatically generate a Helm overrides file within your Terraform working directory named `./helm/module_generated_helm_overrides.yaml`. This Helm overrides file contains values interpolated from some of the infrastructure resources that were created by Terraform in step 6. Within the Helm overrides file, update or validate the values for the remaining settings that are enclosed in the `<>` characters. You may also add any additional configuration settings into your Helm overrides file at this time (see the [Helm-Overrides](https://github.com/hashicorp/terraform-google-terraform-enterprise-gke-hvd/tree/main/docs/helm-overrides.md) doc for more details).
 
 11. Now that you have customized your `module_generated_helm_overrides.yaml` file, rename it to something more applicable to your deployment, such as `prod_tfe_overrides.yaml` (or whatever you prefer). Then, within your `terraform.tfvars` file, set the value of `create_helm_overrides_file` to `false`, as we no longer want the Terraform module to manage this file or generate a new one on a subsequent Terraform run.
 
@@ -137,7 +135,7 @@ If you plan to create a new GKE cluster using this module, then you may skip thi
     ```
 
 14. Verify the TFE pod(s) are starting successfully:
-    
+
     View the events within the namespace:
 
     ```shell
@@ -145,53 +143,58 @@ If you plan to create a new GKE cluster using this module, then you may skip thi
     ```
 
     View the pod(s) within the namespace:
-    
+
     ```shell
     kubectl get pods --namespace <TFE_NAMESPACE>
     ```
 
     View the logs from the pod:
-    
+
     ```shell
     kubectl logs <TFE_POD_NAME> --namespace <TFE_NAMESPACE> -f
     ```
 
 15. If you did not create a DNS record during your Terraform deployment in the previous section (via the boolean input `create_tfe_cloud_dns_record`), then create a DNS record for your TFE FQDN that resolves to your TFE load balancer, depending on how the load balancer was configured during your TFE deployment:
-    
+
     - If you are using a Kubernetes service of type `LoadBalancer` (what the module-generated Helm overrides defaults to), the DNS record should resolve to the static IP address of your TFE load balancer:
-      
+
       ```shell
       kubectl get services --namespace <TFE_NAMESPACE>
       ```
-    
+
     - If you are using a custom Kubernetes ingress (meaning you customized your Helm overrides in step 10), the DNS record should resolve to the IP address of your ingress controller load balancer:
-      
+
       ```shell
       kubectl get ingress <INGRESS_NAME> --namespace <INGRESS_NAMESPACE>
       ```
 
 16. Verify the TFE application is ready:
-      
+
     ```shell
     curl https://<TFE_FQDN>/_health_check
     ```
 
 17. Follow the remaining steps [here](https://developer.hashicorp.com/terraform/enterprise/flexible-deployments/install/kubernetes/install#4-create-initial-admin-user) to finish the installation setup, which involves creating the **initial admin user**.
 
----
-
 ## Docs
 
 Below are links to various docs related to the customization and management of your TFE deployment:
 
- - [Deployment Customizations](./docs/deployment-customizations.md)
- - [Helm Overrides](./docs/helm-overrides.md)
- - [TFE Version Upgrades](./docs/tfe-version-upgrades.md)
- - [TFE TLS Certificate Rotation](./docs/tfe-cert-rotation.md)
- - [TFE Configuration Settings](./docs/tfe-config-settings.md)
- - [TFE Kubernetes Secrets](./docs-kubernetes-secrets.md)
+- [Deployment Customizations](https://github.com/hashicorp/terraform-google-terraform-enterprise-gke-hvd/tree/main/docs/deployment-customizations.md)
+- [Helm Overrides](https://github.com/hashicorp/terraform-google-terraform-enterprise-gke-hvd/tree/main/docs/helm-overrides.md)
+- [TFE Version Upgrades](https://github.com/hashicorp/terraform-google-terraform-enterprise-gke-hvd/tree/main/docs/tfe-version-upgrades.md)
+- [TFE TLS Certificate Rotation](https://github.com/hashicorp/terraform-google-terraform-enterprise-gke-hvd/tree/main/docs/tfe-cert-rotation.md)
+- [TFE Configuration Settings](https://github.com/hashicorp/terraform-google-terraform-enterprise-gke-hvd/tree/main/docs/tfe-config-settings.md)
+- [TFE Kubernetes Secrets](https://github.com/hashicorp/terraform-google-terraform-enterprise-gke-hvd/tree/main/docs-kubernetes-secrets.md)
 
----
+## Module support
+
+This open source software is maintained by the HashiCorp Technical Field Organization, independently of our enterprise products. While our Support Engineering team provides dedicated support for our enterprise offerings, this open source software is not included.
+
+- For help using this open source software, please engage your account team.
+- To report bugs/issues with this open source software, please open them directly against this code repository using the GitHub issues feature.
+
+Please note that there is no official Service Level Agreement (SLA) for support of this software as a HashiCorp customer. This software falls under the definition of Community Software/Versions in your Agreement. We appreciate your understanding and collaboration in improving our open source projects.
 
 <!-- BEGIN_TF_DOCS -->
 ## Requirements
@@ -264,11 +267,6 @@ Below are links to various docs related to the customization and management of y
 
 | Name | Description | Type | Default | Required |
 |------|-------------|------|---------|:--------:|
-| <a name="input_friendly_name_prefix"></a> [friendly\_name\_prefix](#input\_friendly\_name\_prefix) | Prefix used to name all GCP resources uniquely. It is most common to use either an environment (e.g. 'sandbox', 'prod'), a team name, or a project name here. | `string` | n/a | yes |
-| <a name="input_project_id"></a> [project\_id](#input\_project\_id) | ID of GCP project to deploy TFE in. | `string` | n/a | yes |
-| <a name="input_tfe_database_password_secret_version"></a> [tfe\_database\_password\_secret\_version](#input\_tfe\_database\_password\_secret\_version) | Name of PostgreSQL database password secret to retrieve from GCP Secret Manager. | `string` | n/a | yes |
-| <a name="input_tfe_fqdn"></a> [tfe\_fqdn](#input\_tfe\_fqdn) | Fully qualified domain name of TFE instance. This name should eventually resolve to the TFE load balancer DNS name or IP address and will be what clients use to access TFE. | `string` | n/a | yes |
-| <a name="input_vpc_name"></a> [vpc\_name](#input\_vpc\_name) | Name of existing VPC network to create resources in. | `string` | n/a | yes |
 | <a name="input_cloud_dns_zone_name"></a> [cloud\_dns\_zone\_name](#input\_cloud\_dns\_zone\_name) | Name of Google Cloud DNS managed zone to create TFE DNS record in. Only valid when `create_cloud_dns_record` is `true`. | `string` | `null` | no |
 | <a name="input_common_labels"></a> [common\_labels](#input\_common\_labels) | Common labels to apply to all GCP resources. | `map(string)` | `{}` | no |
 | <a name="input_create_gke_cluster"></a> [create\_gke\_cluster](#input\_create\_gke\_cluster) | Boolean to create a GKE cluster. | `bool` | `false` | no |
@@ -276,6 +274,7 @@ Below are links to various docs related to the customization and management of y
 | <a name="input_create_tfe_cloud_dns_record"></a> [create\_tfe\_cloud\_dns\_record](#input\_create\_tfe\_cloud\_dns\_record) | Boolean to create Google Cloud DNS record for TFE using the value of `tfe_fqdn` for the record name. | `bool` | `false` | no |
 | <a name="input_create_tfe_lb_ip"></a> [create\_tfe\_lb\_ip](#input\_create\_tfe\_lb\_ip) | Boolean to create a static IP address for TFE load balancer (load balancer is created/managed by Helm/Kubernetes). | `bool` | `true` | no |
 | <a name="input_enable_gke_workload_identity"></a> [enable\_gke\_workload\_identity](#input\_enable\_gke\_workload\_identity) | Boolean to enable GCP workload identity with GKE cluster. | `bool` | `true` | no |
+| <a name="input_friendly_name_prefix"></a> [friendly\_name\_prefix](#input\_friendly\_name\_prefix) | Prefix used to name all GCP resources uniquely. It is most common to use either an environment (e.g. 'sandbox', 'prod'), a team name, or a project name here. | `string` | n/a | yes |
 | <a name="input_gcs_force_destroy"></a> [gcs\_force\_destroy](#input\_gcs\_force\_destroy) | Boolean indicating whether to allow force destroying the TFE GCS bucket. GCS bucket can be destroyed if it is not empty when `true`. | `bool` | `false` | no |
 | <a name="input_gcs_kms_cmek_name"></a> [gcs\_kms\_cmek\_name](#input\_gcs\_kms\_cmek\_name) | Name of Cloud KMS customer managed encryption key (CMEK) to use for TFE GCS bucket encryption. | `string` | `null` | no |
 | <a name="input_gcs_kms_keyring_name"></a> [gcs\_kms\_keyring\_name](#input\_gcs\_kms\_keyring\_name) | Name of Cloud KMS key ring that contains KMS customer managed encryption key (CMEK) to use for TFE GCS bucket encryption. Geographic location (region) of the key ring must match the location of the TFE GCS bucket. | `string` | `null` | no |
@@ -300,13 +299,14 @@ Below are links to various docs related to the customization and management of y
 | <a name="input_postgres_availability_type"></a> [postgres\_availability\_type](#input\_postgres\_availability\_type) | Availability type of Cloud SQL for PostgreSQL instance. | `string` | `"REGIONAL"` | no |
 | <a name="input_postgres_backup_start_time"></a> [postgres\_backup\_start\_time](#input\_postgres\_backup\_start\_time) | HH:MM time format indicating when daily automatic backups of Cloud SQL for PostgreSQL should run. Defaults to 12 AM (midnight) UTC. | `string` | `"00:00"` | no |
 | <a name="input_postgres_disk_size"></a> [postgres\_disk\_size](#input\_postgres\_disk\_size) | Size in GB of PostgreSQL disk. | `number` | `50` | no |
-| <a name="input_postgres_insights_config"></a> [postgres\_insights\_config](#input\_postgres\_insights\_config) | Configuration settings for Cloud SQL for PostgreSQL insights. | <pre>object({<br>    query_insights_enabled  = bool<br>    query_plans_per_minute  = number<br>    query_string_length     = number<br>    record_application_tags = bool<br>    record_client_address   = bool<br>  })</pre> | <pre>{<br>  "query_insights_enabled": false,<br>  "query_plans_per_minute": 5,<br>  "query_string_length": 1024,<br>  "record_application_tags": false,<br>  "record_client_address": false<br>}</pre> | no |
+| <a name="input_postgres_insights_config"></a> [postgres\_insights\_config](#input\_postgres\_insights\_config) | Configuration settings for Cloud SQL for PostgreSQL insights. | <pre>object({<br/>    query_insights_enabled  = bool<br/>    query_plans_per_minute  = number<br/>    query_string_length     = number<br/>    record_application_tags = bool<br/>    record_client_address   = bool<br/>  })</pre> | <pre>{<br/>  "query_insights_enabled": false,<br/>  "query_plans_per_minute": 5,<br/>  "query_string_length": 1024,<br/>  "record_application_tags": false,<br/>  "record_client_address": false<br/>}</pre> | no |
 | <a name="input_postgres_kms_cmek_name"></a> [postgres\_kms\_cmek\_name](#input\_postgres\_kms\_cmek\_name) | Name of Cloud KMS customer managed encryption key (CMEK) to use for Cloud SQL for PostgreSQL database instance. | `string` | `null` | no |
 | <a name="input_postgres_kms_keyring_name"></a> [postgres\_kms\_keyring\_name](#input\_postgres\_kms\_keyring\_name) | Name of Cloud KMS Key Ring that contains KMS key to use for Cloud SQL for PostgreSQL. Geographic location (region) of key ring must match the location of the TFE Cloud SQL for PostgreSQL database instance. | `string` | `null` | no |
 | <a name="input_postgres_machine_type"></a> [postgres\_machine\_type](#input\_postgres\_machine\_type) | Machine size of Cloud SQL for PostgreSQL instance. | `string` | `"db-custom-4-16384"` | no |
-| <a name="input_postgres_maintenance_window"></a> [postgres\_maintenance\_window](#input\_postgres\_maintenance\_window) | Optional maintenance window settings for the Cloud SQL for PostgreSQL instance. | <pre>object({<br>    day          = number<br>    hour         = number<br>    update_track = string<br>  })</pre> | <pre>{<br>  "day": 7,<br>  "hour": 0,<br>  "update_track": "stable"<br>}</pre> | no |
+| <a name="input_postgres_maintenance_window"></a> [postgres\_maintenance\_window](#input\_postgres\_maintenance\_window) | Optional maintenance window settings for the Cloud SQL for PostgreSQL instance. | <pre>object({<br/>    day          = number<br/>    hour         = number<br/>    update_track = string<br/>  })</pre> | <pre>{<br/>  "day": 7,<br/>  "hour": 0,<br/>  "update_track": "stable"<br/>}</pre> | no |
 | <a name="input_postgres_ssl_mode"></a> [postgres\_ssl\_mode](#input\_postgres\_ssl\_mode) | Indicates whether to enforce TLS/SSL connections to the Cloud SQL for PostgreSQL instance. | `string` | `"ENCRYPTED_ONLY"` | no |
 | <a name="input_postgres_version"></a> [postgres\_version](#input\_postgres\_version) | PostgreSQL version to use. | `string` | `"POSTGRES_16"` | no |
+| <a name="input_project_id"></a> [project\_id](#input\_project\_id) | ID of GCP project to deploy TFE in. | `string` | n/a | yes |
 | <a name="input_redis_auth_enabled"></a> [redis\_auth\_enabled](#input\_redis\_auth\_enabled) | Boolean to enable authentication on Redis instance. | `bool` | `true` | no |
 | <a name="input_redis_connect_mode"></a> [redis\_connect\_mode](#input\_redis\_connect\_mode) | Network connection mode for Redis instance. | `string` | `"PRIVATE_SERVICE_ACCESS"` | no |
 | <a name="input_redis_kms_cmek_name"></a> [redis\_kms\_cmek\_name](#input\_redis\_kms\_cmek\_name) | Name of Cloud KMS customer managed encryption key (CMEK) to use for TFE Redis instance. | `string` | `null` | no |
@@ -318,7 +318,9 @@ Below are links to various docs related to the customization and management of y
 | <a name="input_tfe_cloud_dns_record_ip_address"></a> [tfe\_cloud\_dns\_record\_ip\_address](#input\_tfe\_cloud\_dns\_record\_ip\_address) | IP address of DNS record for TFE. Only valid when `create_cloud_dns_record` is `true` and `create_tfe_lb_ip` is `false`. | `string` | `null` | no |
 | <a name="input_tfe_database_name"></a> [tfe\_database\_name](#input\_tfe\_database\_name) | Name of TFE PostgreSQL database to create. | `string` | `"tfe"` | no |
 | <a name="input_tfe_database_parameters"></a> [tfe\_database\_parameters](#input\_tfe\_database\_parameters) | Additional parameters to pass into the TFE database settings for the PostgreSQL connection URI. | `string` | `"sslmode=require"` | no |
+| <a name="input_tfe_database_password_secret_version"></a> [tfe\_database\_password\_secret\_version](#input\_tfe\_database\_password\_secret\_version) | Name of PostgreSQL database password secret to retrieve from GCP Secret Manager. | `string` | n/a | yes |
 | <a name="input_tfe_database_user"></a> [tfe\_database\_user](#input\_tfe\_database\_user) | Name of TFE PostgreSQL database user to create. | `string` | `"tfe"` | no |
+| <a name="input_tfe_fqdn"></a> [tfe\_fqdn](#input\_tfe\_fqdn) | Fully qualified domain name of TFE instance. This name should eventually resolve to the TFE load balancer DNS name or IP address and will be what clients use to access TFE. | `string` | n/a | yes |
 | <a name="input_tfe_http_port"></a> [tfe\_http\_port](#input\_tfe\_http\_port) | HTTP port number that the TFE application will listen on within the TFE pods. It is recommended to leave this as the default value. | `number` | `8080` | no |
 | <a name="input_tfe_https_port"></a> [tfe\_https\_port](#input\_tfe\_https\_port) | HTTPS port number that the TFE application will listen on within the TFE pods. It is recommended to leave this as the default value. | `number` | `8443` | no |
 | <a name="input_tfe_kube_namespace"></a> [tfe\_kube\_namespace](#input\_tfe\_kube\_namespace) | Name of Kubernetes namespace for TFE (created by Helm chart). Used to configure GCP workload identity with GKE. | `string` | `"tfe"` | no |
@@ -328,6 +330,7 @@ Below are links to various docs related to the customization and management of y
 | <a name="input_tfe_lb_subnet_name"></a> [tfe\_lb\_subnet\_name](#input\_tfe\_lb\_subnet\_name) | Name or self\_link to existing VPC subnetwork to create TFE internal load balancer IP address in. | `string` | `null` | no |
 | <a name="input_tfe_metrics_http_port"></a> [tfe\_metrics\_http\_port](#input\_tfe\_metrics\_http\_port) | HTTP port number that the TFE metrics endpoint will listen on within the TFE pods. It is recommended to leave this as the default value. | `number` | `9090` | no |
 | <a name="input_tfe_metrics_https_port"></a> [tfe\_metrics\_https\_port](#input\_tfe\_metrics\_https\_port) | HTTPS port number that the TFE metrics endpoint will listen on within the TFE pods. It is recommended to leave this as the default value. | `number` | `9091` | no |
+| <a name="input_vpc_name"></a> [vpc\_name](#input\_vpc\_name) | Name of existing VPC network to create resources in. | `string` | n/a | yes |
 | <a name="input_vpc_project_id"></a> [vpc\_project\_id](#input\_vpc\_project\_id) | ID of GCP Project where the existing VPC resides if it is different than the default project. | `string` | `null` | no |
 
 ## Outputs
