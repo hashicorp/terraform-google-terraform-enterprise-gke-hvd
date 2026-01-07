@@ -50,96 +50,63 @@ resource "google_project_iam_member" "gke_artifact_reader" {
 # TFE service account
 #------------------------------------------------------------------------------
 resource "google_service_account" "tfe" {
-  account_id   = "${var.friendly_name_prefix}-tfe-sa"
-  display_name = "${var.friendly_name_prefix}-tfe-sa"
-  description  = "Custom service account for TFE for GCP GKE workload identity."
+  count = !var.is_secondary_region_deployment ? 1 : 0
+
+  account_id   = var.tfe_gcp_svc_account_name
+  display_name = var.tfe_gcp_svc_account_name
+  description  = "Custom service account for TFE for GCP GKE workload identity, GCS bucket permissions, and optional database authentication."
+}
+
+// Used for secondary region only
+data "google_service_account" "tfe" {
+  count = var.is_secondary_region_deployment ? 1 : 0
+
+  project    = var.project_id
+  account_id = var.tfe_gcp_svc_account_name
 }
 
 resource "google_service_account_key" "tfe" {
-  count = !var.enable_gke_workload_identity ? 1 : 0
+  count = !var.enable_gke_workload_identity && !var.is_secondary_region_deployment ? 1 : 0
 
-  service_account_id = google_service_account.tfe.name
+  service_account_id = google_service_account.tfe[0].name
 }
 
-resource "google_service_account_iam_binding" "tfe_workload_identity" {
-  count = var.enable_gke_workload_identity ? 1 : 0
+resource "google_service_account_iam_member" "tfe_workload_identity" {
+  count = var.enable_gke_workload_identity && !var.is_secondary_region_deployment ? 1 : 0
 
-  service_account_id = google_service_account.tfe.id
+  service_account_id = google_service_account.tfe[0].name
   role               = "roles/iam.workloadIdentityUser"
-
-  members = [
-    "serviceAccount:${var.project_id}.svc.id.goog[${var.tfe_kube_namespace}/${var.tfe_kube_svc_account}]"
-  ]
+  member             = "serviceAccount:${var.project_id}.svc.id.goog[${var.tfe_kube_namespace}/${var.tfe_kube_svc_account}]"
 }
 
 resource "google_storage_bucket_iam_member" "tfe_gcs_object_admin" {
-  bucket = google_storage_bucket.tfe.id
+  count = !var.is_secondary_region_deployment ? 1 : 0
+
+  bucket = google_storage_bucket.tfe[0].id
   role   = "roles/storage.objectAdmin"
-  member = "serviceAccount:${google_service_account.tfe.email}"
+  member = "serviceAccount:${google_service_account.tfe[0].email}"
 }
 
 resource "google_storage_bucket_iam_member" "tfe_gcs_reader" {
-  bucket = google_storage_bucket.tfe.id
+  count = !var.is_secondary_region_deployment ? 1 : 0
+
+  bucket = google_storage_bucket.tfe[0].id
   role   = "roles/storage.legacyBucketReader"
-  member = "serviceAccount:${google_service_account.tfe.email}"
+  member = "serviceAccount:${google_service_account.tfe[0].email}"
 }
 
-#------------------------------------------------------------------------------
-# Cloud SQL for PostgreSQL KMS CMEK
-#------------------------------------------------------------------------------
-// There is no Google-managed service account (service agent) for Cloud SQL,
-// so one must be created to allow the Cloud SQL instance to use the CMEK.
-// https://cloud.google.com/sql/docs/postgres/configure-cmek
-resource "google_project_service_identity" "cloud_sql_sa" {
-  count    = var.postgres_kms_cmek_name != null ? 1 : 0
-  provider = google-beta
+resource "google_project_iam_member" "tfe_cloudsql_instance_user" {
+  count = var.enable_passwordless_iam_db_auth && !var.is_secondary_region_deployment ? 1 : 0
 
-  service = "sqladmin.googleapis.com"
+  project = var.project_id
+  role    = "roles/cloudsql.instanceUser"
+  member  = "serviceAccount:${google_service_account.tfe[0].email}"
 }
 
-resource "google_kms_crypto_key_iam_binding" "cloud_sql_sa_postgres_cmek" {
-  count = var.postgres_kms_cmek_name != null ? 1 : 0
+resource "google_project_iam_member" "tfe_cloudsql_client" {
+  count = var.enable_passwordless_iam_db_auth && !var.is_secondary_region_deployment ? 1 : 0
 
-  crypto_key_id = data.google_kms_crypto_key.postgres[0].id
-  role          = "roles/cloudkms.cryptoKeyEncrypterDecrypter"
-
-  members = [
-    "serviceAccount:${google_project_service_identity.cloud_sql_sa[0].email}",
-  ]
-}
-
-#------------------------------------------------------------------------------
-# GCS KMS CMEK
-#------------------------------------------------------------------------------
-locals {
-  gcs_service_account_email = "service-${data.google_project.current.number}@gs-project-accounts.iam.gserviceaccount.com"
-}
-
-resource "google_kms_crypto_key_iam_binding" "gcp_project_gcs_cmek" {
-  count = var.gcs_kms_cmek_name != null ? 1 : 0
-
-  crypto_key_id = data.google_kms_crypto_key.tfe_gcs_cmek[0].id
-  role          = "roles/cloudkms.cryptoKeyEncrypterDecrypter"
-
-  members = [
-    "serviceAccount:${local.gcs_service_account_email}",
-  ]
-}
-
-#------------------------------------------------------------------------------
-# Redis KMS CMEK
-#------------------------------------------------------------------------------
-locals {
-  redis_service_account_email = "service-${data.google_project.current.number}@cloud-redis.iam.gserviceaccount.com"
-}
-
-resource "google_kms_crypto_key_iam_binding" "redis_sa_cmek" {
-  count = var.redis_kms_cmek_name != null ? 1 : 0
-
-  crypto_key_id = data.google_kms_crypto_key.redis[0].id
-  role          = "roles/cloudkms.cryptoKeyEncrypterDecrypter"
-
-  members = [
-    "serviceAccount:${local.redis_service_account_email}",
-  ]
+  project = var.project_id
+  role    = "roles/cloudsql.client"
+  member  = "serviceAccount:${google_service_account.tfe[0].email}"
 }
