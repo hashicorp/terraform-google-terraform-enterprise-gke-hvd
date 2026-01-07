@@ -1,12 +1,12 @@
 # Terraform Enterprise HVD on GCP GKE
 
-Terraform module aligned with HashiCorp Validated Designs (HVD) to deploy Terraform Enterprise on Google Kubernetes Engine (GKE). This module supports bringing your own GKE cluster, or optionally creating a new GKE cluster dedicated to running TFE. This module does not use the Kubernetes or Helm Terraform providers, but rather includes [Post Steps](#post-steps) for the application layer portion of the deployment leveraging the `kubectl` and `helm` CLIs.
+Terraform module aligned with HashiCorp Validated Designs (HVD) to deploy Terraform Enterprise (TFE) on Google Kubernetes Engine (GKE). This module supports bringing your own GKE cluster, or optionally creating a new GKE cluster dedicated to running TFE. This module does not use the Kubernetes or Helm Terraform providers, but rather includes [Post Steps](#post-steps) for the application layer portion of the deployment leveraging the `kubectl` and `helm` CLIs.
 
 ## Prerequisites
 
 ### General
 
-- TFE license file (_e.g._ `terraform.hclic`)
+- TFE license file (_e.g._, `terraform.hclic`)
 - Terraform CLI (version `>= 1.9`) installed on workstation
 - General understanding of how to use Terraform (Community Edition)
 - General understaning of how to use Google Cloud Platform (GCP)
@@ -15,29 +15,26 @@ Terraform module aligned with HashiCorp Validated Designs (HVD) to deploy Terraf
 - `kubectl` CLI and `helm` CLI installed on workstation
 - `git` CLI and Visual Studio Code code editor installed on worksation are strongly recommended
 - GCP project that TFE will be deployed in with permissions to provision these [resources](#resources) via Terraform CLI
-- (Optional) GCS bucket for [GCS remote state backend](https://developer.hashicorp.com/terraform/language/settings/backends/gcs) that will be used to manage the Terraform state of this TFE deployment (out-of-band from the TFE application) via Terraform CLI (Community Edition)
+- (Optional) GCS bucket for [GCS remote state backend](https://developer.hashicorp.com/terraform/language/settings/backends/gcs) that will be used to manage the Terraform state of this TFE deployment (out-of-band from the TFE application infrastructure) via Terraform CLI (Community Edition)
 
 ### Networking
 
 - VPC network that TFE will be deployed in
-- Private Service Access (PSA) configured in VPC to enable private connectivity from GKE cluster/TFE pods to Cloud SQL for PostgreSQL and Memorystore for Redis
-- Subnet for GKE cluster (if `create_gke_cluster` is `true`). It is highly recommended that the subnet has Private Google Access enabled for private connectivity from GKE cluster to Google Cloud Storage.
-- Static IP address for TFE load balancer (whether to be associated with a Kubernetes service or ingress controller load balancer)
-- Chosen fully qualified domain name (FQDN) for TFE (_e.g._ `tfe.gcp.example.com`)
+  - GKE cluster must be deployed in the same VPC network as CloudSQL for PostgreSQL database instance and Memorystore for Redis instance
+- **Private Service Access (PSA)** configured in VPC to enable private connectivity from GKE worker nodes to Cloud SQL for PostgreSQL database instance and Memorystore for Redis instance
+- Subnet for GKE cluster (if you plan to use this module to create your GKE cluster for TFE rather than bring your own GKE cluster)
+  - It is strongly recommended that this subnet has **Private Google Access** enabled to allow private access from the GKE cluster to the Google Cloud Storage (GCS) bucket.
+- Static IP address for TFE load balancer (to be used by either a Kubernetes `Service` of type `LoadBalancer` or an ingress controller)
+- Chosen fully qualified domain name (FQDN) for TFE instance (_e.g._, `tfe-prod.gcp.example.com`)
 
-#### Firewall rules
+#### Firewall rules / network traffic requirements
 
-- Allow `TCP:443` ingress to TFE load balancer subnet from CIDR ranges of TFE users/clients, VCS, and any other systems that needs to access TFE
-- Allow `TCP:443` ingress to GKE/TFE pods subnet from source IP ranges listed [here](https://cloud.google.com/load-balancing/docs/health-check-concepts#ip-ranges) for GCP load balancer health check probes
-- (Optional) Allow `TCP:9091` (HTTPS) and `TCP:9090` (HTTP) ingress to GKE/TFE pods subnet from CIDR ranges of your monitoring/observability tool (for scraping TFE metrics endpoints)
-- Allow `TCP:8443` (HTTPS) and `TCP:8080` (HTTP) ingress to GKE/TFE pods subnet from TFE load balancer subnet (for TFE application traffic)
-- Allow `TCP:5432` ingress to database subnet from GKE/TFE pods subnet (for PostgreSQL traffic)
-- Allow `TCP:6379` ingress to Redis subnet from GKE/TFE pods subnet (for Redis TLS traffic)
-- Allow `TCP:8201` between nodes on GKE/TFE pods subnet (for TFE embedded Vault internal cluster traffic)
-- Allow `TCP:443` egress to Terraform endpoints listed [here](https://developer.hashicorp.com/terraform/enterprise/flexible-deployments/install/requirements/network#egress) from GKE/TFE pods subnet
-- If your GKE cluster is private, your client/workstation must be able to access the control plane via `kubectl` and `helm`
-- Be familiar with the [TFE ingress requirements](https://developer.hashicorp.com/terraform/enterprise/flexible-deployments/install/requirements/network#ingress)
-- Be familiar with the [TFE egress requirements](https://developer.hashicorp.com/terraform/enterprise/flexible-deployments/install/requirements/network#egress)
+- Allow `TCP:443` ingress to TFE load balancer from CIDR ranges of TFE users/clients, VCS provider, and any other external systems that needs to access the TFE UI or API
+- Allow `TCP:8201` between TFE pods (for TFE embedded Vault internal cluster communication) - **typically handled automatically/natively by GKE and does not require a custom firewall rule**
+- Allow `TCP:443` egress to Terraform endpoints listed [here](https://developer.hashicorp.com/terraform/enterprise/flexible-deployments/install/requirements/network#egress) from TFE pods
+- If your GKE cluster is **private**, your clients/workstations must be able to reach the GKE control plane via `kubectl` and `helm`
+- Review the [TFE ingress requirements](https://developer.hashicorp.com/terraform/enterprise/flexible-deployments/install/requirements/network#ingress)
+- Review the [TFE egress requirements](https://developer.hashicorp.com/terraform/enterprise/flexible-deployments/install/requirements/network#egress)
 
 ### TLS certificates
 
@@ -46,19 +43,21 @@ Terraform module aligned with HashiCorp Validated Designs (HVD) to deploy Terraf
   - Private key must **not** be password protected
 - TLS certificate authority (CA) bundle (_e.g._ `ca_bundle.pem`) corresponding with the CA that issues your TFE TLS certificates
   - CA bundle must be in PEM format
-  - You may include additional certificate chains corresponding to external systems that TFE will make outbound connections to (_e.g._ your self-hosted VCS, if its certificate was issued by a different CA than your TFE certificate)
+  - You may include additional certificate chains corresponding to external systems that TFE will make outbound connections to (_e.g._, your self-hosted VCS, if its certificate was issued by a different CA than the issuer of your TFE TLS certificate)
 
 ### Secret management
 
-GCP Secret Manager secrets:
+Google Secret Manager secrets:
 
  - PostgreSQL database password secret
 
 ### Compute (optional)
 
-If you plan to create a new GKE cluster using this module, then you may skip this section. Otherwise:
+If you plan to create a new GKE cluster using this module, then there is no GKE prereq. Otherwise:
 
  - GKE cluster
+ - (Recommended) Workload identity enabled on GKE cluster (`workload_pool = "<PROJECT_ID>.svc.id.goog"`)
+ - GKE node pool for TFE application (control plane)
 
 ---
 
@@ -66,9 +65,9 @@ If you plan to create a new GKE cluster using this module, then you may skip thi
 
 1. Create/configure/validate the applicable [prerequisites](#prerequisites).
 
-2. Nested within the [examples](./examples/) directory are subdirectories that contain ready-made Terraform configurations of example scenarios for how to call and deploy this module. To get started, choose an example scenario. If you are starting without an existing GKE cluster, then you should select the [new-gke](examples/new-gke) example scenario.
+2. Nested within the [examples](./examples/) directory are subdirectories that contain ready-made Terraform configurations of example scenarios for how to deploy this module. To get started, choose an example scenario. If you are starting without an existing GKE cluster, then you should select the [new-gke](examples/new-gke) example scenario.
 
-3. Copy all of the Terraform files from your example scenario of choice into a new destination directory to create your Terraform configuration that will manage your TFE deployment. If you are not sure where to create this new directory, it is common for users to create an `environments/` directory at the root of this repo (once you have cloned it down locally), and then a subdirectory for each TFE instance deployment, like so:
+3. Copy all of the Terraform files from your example scenario of choice into a new destination directory to create the Terraform configuration that will manage your TFE deployment. If you are not sure where to create this new directory, it is common for users to create an `environments/` directory at the root of this repo (once you have cloned it down locally), and then a subdirectory for each TFE instance deployment. For example:
 
     ```
     .
@@ -93,9 +92,11 @@ If you plan to create a new GKE cluster using this module, then you may skip thi
 
 5. Populate your own custom values into the `terraform.tfvars.example` file that was provided (in particular, values enclosed in the `<>` characters). Then, remove the `.example` file extension such that the file is now named `terraform.tfvars`.
 
-6. Navigate to the directory of your newly created Terraform configuration for your TFE deployment, and run `terraform init`, `terraform plan`, and `terraform apply`.
+6. Navigate to the directory of the newly created Terraform configuration for your TFE deployment, and run `terraform init`, `terraform plan`, and `terraform apply`.
 
-**The TFE infrastructure resources have now been created. Next comes the application layer portion of the deployment (which we refer to as the Post Steps), which will involve interacting with your GKE cluster via `kubectl` and installing the TFE application via `helm`.**
+**At this point, the Terraform-managed infrastructure resources for TFE have been created.**
+
+The next phase of the deployment is the application layer (referred to as the **Post Steps**). This phase involves interacting with your GKE cluster using `kubectl` and installing the TFE application using `helm`. The steps are documented using these CLI tools as a baseline; equivalent Kubernetes tooling or workflows may be used as appropriate.
 
 ## Post Steps
 
@@ -113,13 +114,19 @@ If you plan to create a new GKE cluster using this module, then you may skip thi
    kubectl create namespace tfe
    ```
    
-   >📝 Note: You can name it something different than `tfe` if you prefer. If you do name it differently, be sure to update your value of the `tfe_kube_namespace` and `tfe_kube_svc_account` input variables accordingly (the Helm chart will automatically create a Kubernetes service account for TFE based on the name of the namespace).
+   >📝 Note: You may name it something different than `tfe` if you prefer. If you do name it differently, be sure to update your value of the `tfe_kube_namespace` and `tfe_kube_svc_account` input variables accordingly (the Helm chart will automatically create a Kubernetes service account for TFE based on the name of the namespace).
 
-9. Create the required secrets for your TFE deployment within your new Kubernetes namespace for TFE. There are several ways to do this, whether it be from the CLI via `kubectl`, or another method involving a third-party secrets helper/tool. See the [Kubernetes-Secrets](./docs/kubernetes-secrets.md) doc for details on the required secrets and how to create them.
+9. Create the required secrets for your TFE deployment within your new Kubernetes namespace for TFE. There are several ways to do this, whether it be from the CLI via `kubectl`, or another method involving a third-party secrets helper/tool. 
 
-10. This Terraform module will automatically generate a Helm overrides file within your Terraform working directory named `./helm/module_generated_helm_overrides.yaml`. This Helm overrides file contains values interpolated from some of the infrastructure resources that were created by Terraform in step 6. Within the Helm overrides file, update or validate the values for the remaining settings that are enclosed in the `<>` characters. You may also add any additional configuration settings into your Helm overrides file at this time (see the [Helm-Overrides](./docs/helm-overrides.md) doc for more details).
+    See the [Kubernetes-Secrets](./docs/kubernetes-secrets.md) doc for details on the required secrets and how to create them.
 
-11. Now that you have customized your `module_generated_helm_overrides.yaml` file, rename it to something more applicable to your deployment, such as `prod_tfe_overrides.yaml` (or whatever you prefer). Then, within your `terraform.tfvars` file, set the value of `create_helm_overrides_file` to `false`, as we no longer want the Terraform module to manage this file or generate a new one on a subsequent Terraform run.
+10. This Terraform module will automatically generate a Helm overrides file within your Terraform working directory named `./helm/module_generated_helm_overrides.yaml`. This Helm overrides file contains values interpolated from some of the infrastructure resources that were created by Terraform in step 6.
+
+    Within the Helm overrides file, update or validate the values for the remaining settings that are enclosed in the `<>` characters. You may also add any additional configuration settings into your Helm overrides file at this time (see the [Helm-Overrides](./docs/helm-overrides.md) doc for more details).
+
+11. Now that you have customized your `module_generated_helm_overrides.yaml` file, rename it to something more applicable to your deployment, such as `prod_tfe_overrides_primary.yaml` (or whatever you prefer). 
+
+    Then, within your `terraform.tfvars` file, set the value of `create_helm_overrides_file` to `false`, as we no longer need the Terraform module to manage this file or generate a new one on a subsequent Terraform run.
 
 12. Add the HashiCorp Helm registry:
 
@@ -176,7 +183,7 @@ If you plan to create a new GKE cluster using this module, then you may skip thi
     curl https://<TFE_FQDN>/_health_check
     ```
 
-17. Follow the remaining steps [here](https://developer.hashicorp.com/terraform/enterprise/flexible-deployments/install/kubernetes/install#4-create-initial-admin-user) to finish the installation setup, which involves creating the **initial admin user**.
+17. Follow the remaining steps [here](https://developer.hashicorp.com/terraform/enterprise/deploy/kubernetes#create-initial-admin-user) to finish the installation setup, which involves **creating the initial admin user**.
 
 ---
 
@@ -184,12 +191,13 @@ If you plan to create a new GKE cluster using this module, then you may skip thi
 
 Below are links to various docs related to the customization and management of your TFE deployment:
 
- - [Deployment Customizations](./docs/deployment-customizations.md)
- - [Helm Overrides](./docs/helm-overrides.md)
+ - [TFE Deployment Customizations](./docs/deployment-customizations.md)
+ - [TFE Helm Overrides](./docs/helm-overrides.md)
  - [TFE Version Upgrades](./docs/tfe-version-upgrades.md)
  - [TFE TLS Certificate Rotation](./docs/tfe-cert-rotation.md)
  - [TFE Configuration Settings](./docs/tfe-config-settings.md)
- - [TFE Kubernetes Secrets](./docs-kubernetes-secrets.md)
+ - [TFE Kubernetes Secrets](./docs/kubernetes-secrets.md)
+ - [TFE Multi-Region Deployment](./docs/multi-region-deployment.md)
 
 ---
 

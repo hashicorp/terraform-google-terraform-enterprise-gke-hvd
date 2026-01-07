@@ -12,7 +12,7 @@ The following input variables control how the module behaves based on the deploy
 
   Controls whether the module is deployed into a secondary region and skips resources that should only be created once in the primary region (`false` for **primary**, `true` for **secondary**).
 
-- `is_postgres_db_replica`<br>
+- `postgres_db_is_replica`<br>
    
   Controls whether the Cloud SQL for PostgreSQL instance is provisioned as a primary or replica (`false` for **primary**, `true` for **replica**).
 
@@ -22,7 +22,7 @@ The following input variables control how the module behaves based on the deploy
 | Compute IP Address (optional) | `google_compute_address.tfe_lb` |  | ✅ | Load balancer IP is created per region (if `create_tfe_lb_ip = true`). |
 | DNS Record (optional) | `google_dns_record_set.tfe` | ✅ |  | Created in the primary region if `create_tfe_cloud_dns_record = true`. Disabled in the secondary region until failover. |
 | IAM Service Account | `google_service_account.tfe`<br>`google_project_iam_member.*` | ✅ |  | Created once in the primary region, including all IAM bindings and permissions. IAM resources are **global within a GCP project** and do not need to be duplicated per region. |
-| Postgres (Cloud SQL instance) | `google_sql_database_instance.tfe` |  | ✅ | Secondary region instance is initially deployed as a **replica** (`is_postgres_db_replica = true`). |
+| Postgres (Cloud SQL instance) | `google_sql_database_instance.tfe` |  | ✅ | Secondary region instance is initially deployed as a **replica** (`postgres_db_is_replica = true`). |
 | Database | `google_sql_database.tfe` | ✅ |  | Created once in the primary region and replicated to the replica instance. |
 | Database User | `google_sql_user.tfe` | ✅ |  | Created once in the primary region and replicated to the replica instance. |
 | Object Storage (GCS) | `google_storage_bucket.tfe` | ✅ |  | Bucket is created once using a **dual-region** configuration and shared across regions. |
