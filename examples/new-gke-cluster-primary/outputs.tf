@@ -2,6 +2,14 @@
 # SPDX-License-Identifier: MPL-2.0
 
 #------------------------------------------------------------------------------
+# GKE
+#------------------------------------------------------------------------------
+output "gke_cluster_name" {
+  value       = module.tfe.gke_cluster_name
+  description = "Name of TFE GKE cluster."
+}
+
+#------------------------------------------------------------------------------
 # IAM
 #------------------------------------------------------------------------------
 output "tfe_service_account_email" {
@@ -17,12 +25,27 @@ output "tfe_lb_ip_address_name" {
   description = "Name of IP address resource of TFE load balancer."
 }
 
+output "tfe_lb_ip_address" {
+  value       = module.tfe.tfe_lb_ip_address
+  description = "IP address of TFE load balancer"
+}
+
 #------------------------------------------------------------------------------
 # Database
 #------------------------------------------------------------------------------
+output "postgres_db_instance_name" {
+  value       = module.tfe.postgres_db_instance_id
+  description = "Name (ID) of TFE Cloud SQL for PostgreSQL database instance in this region."
+}
+
 output "tfe_database_host" {
   value       = module.tfe.tfe_database_host
   description = "IP address of TFE Cloud SQL for PostgreSQL database instance."
+}
+
+output "tfe_database_user" {
+  value       = module.tfe.tfe_database_user
+  description = "TFE PostgreSQL database username."
 }
 
 output "tfe_database_password" {
