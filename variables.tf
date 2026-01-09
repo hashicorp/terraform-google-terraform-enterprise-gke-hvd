@@ -302,24 +302,19 @@ variable "tfe_database_password_secret_version" {
   description = "Name of Google Secret Manager secret version for the PostgreSQL password. Only used for primary region deployments when `enable_passwordless_iam_db_auth` is false."
   default     = null
 
-  # Must be null if passwordless auth OR read replica
   validation {
     condition = (
-      var.postgres_db_is_replica ||
-      !var.enable_passwordless_iam_db_auth ||
-      var.tfe_database_password_secret_version == null
+      # Required only when: primary region + not replica + password auth
+      (
+        !var.is_secondary_region_deployment &&
+        !var.postgres_db_is_replica &&
+        !var.enable_passwordless_iam_db_auth
+      )
+      ? var.tfe_database_password_secret_version != null
+      : var.tfe_database_password_secret_version == null
     )
-    error_message = "`tfe_database_password_secret_version` must be `null` when `enable_passwordless_iam_db_auth` is `true` or when `postgres_db_is_replica` is `true`."
-  }
 
-  # Must be set only when primary + password auth
-  validation {
-    condition = (
-      var.postgres_db_is_replica ||
-      var.enable_passwordless_iam_db_auth ||
-      var.tfe_database_password_secret_version != null
-    )
-    error_message = "`tfe_database_password_secret_version` must be set when `enable_passwordless_iam_db_auth` is `false` and `postgres_db_is_replica` is `false`."
+    error_message = "`tfe_database_password_secret_version` must be set only for primary region deployments when `enable_passwordless_iam_db_auth` is `false` and `postgres_db_is_replica` is `false`; otherwise it must be `null`."
   }
 }
 
