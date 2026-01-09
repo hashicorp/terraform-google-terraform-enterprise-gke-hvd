@@ -90,7 +90,7 @@ To deploy TFE in a primary and secondary (disaster recovery) region, refer to th
 - [new-gke-cluster-primary](../examples/new-gke-cluster-primary/)
 - [new-gke-cluster-secondary](../examples/new-gke-cluster-secondary/)
 
->📝 Note: The same concepts apply when using the [byo-gke-cluster](../examples/byo-gke-cluster/) example.
+>📝 Note: The same concepts apply when using the [byo-gke-cluster](../examples/byo-gke-cluster/) example, just without the GKE input variables present.
 
 Follow the [Post Steps](../README.md#post-steps) for both region deployments.
 
