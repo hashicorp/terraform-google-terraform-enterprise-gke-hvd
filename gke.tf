@@ -48,7 +48,7 @@ resource "google_container_cluster" "tfe" {
 
       content {
         cidr_block   = var.gke_control_plane_authorized_cidr
-        display_name = "laptop"
+        display_name = "user-defined-authorized-cidr"
       }
     }
   }
