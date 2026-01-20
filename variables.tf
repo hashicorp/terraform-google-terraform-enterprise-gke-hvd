@@ -287,34 +287,29 @@ variable "gke_node_disk_size_gb" {
 #------------------------------------------------------------------------------
 variable "postgres_db_is_replica" {
   type        = bool
-  description = "Whether the Cloud SQL for PostreSQL database instance in this deployment is a read replica."
+  description = "Whether the Cloud SQL for PostgreSQL database instance in this deployment is a read replica."
   default     = false
 }
 
 variable "enable_passwordless_iam_db_auth" {
   type        = bool
-  description = "Whether to enable passwordless IAM authentication to Cloud SQL for PostreSQL database instance."
+  description = "Whether to enable passwordless IAM authentication to Cloud SQL for PostgreSQL database instance."
   default     = false
 }
 
 variable "tfe_database_password_secret_version" {
   type        = string
-  description = "Name of Google Secret Manager secret version for the PostgreSQL password. Only used for primary region deployments when `enable_passwordless_iam_db_auth` is false."
+  description = "Name of Google Secret Manager secret version for the TFE database user password. Only used for primary region deployments when `enable_passwordless_iam_db_auth` is false."
   default     = null
 
   validation {
     condition = (
-      # Required only when: primary region + not replica + password auth
-      (
-        !var.is_secondary_region_deployment &&
-        !var.postgres_db_is_replica &&
-        !var.enable_passwordless_iam_db_auth
-      )
-      ? var.tfe_database_password_secret_version != null
-      : var.tfe_database_password_secret_version == null
+      (var.is_secondary_region_deployment || var.enable_passwordless_iam_db_auth)
+      ? var.tfe_database_password_secret_version == null
+      : var.tfe_database_password_secret_version != null
     )
 
-    error_message = "`tfe_database_password_secret_version` must be set only for primary region deployments when `enable_passwordless_iam_db_auth` is `false` and `postgres_db_is_replica` is `false`; otherwise it must be `null`."
+    error_message = "`tfe_database_password_secret_version` must be set only when `is_secondary_region_deployment` is false and `enable_passwordless_iam_db_auth` is false; otherwise it must be null."
   }
 }
 
@@ -345,27 +340,15 @@ variable "tfe_database_user" {
   description = "Name of TFE PostgreSQL database user to create. Only valid for primary region deployments when password auth is used."
   default     = null
 
-  # Must be null if passwordless auth OR secondary region
   validation {
     condition = (
-      var.is_secondary_region_deployment ||
-      !var.enable_passwordless_iam_db_auth ||
-      var.tfe_database_user == null
+      (var.is_secondary_region_deployment || var.enable_passwordless_iam_db_auth)
+      ? var.tfe_database_user == null
+      : var.tfe_database_user != null
     )
-    error_message = "`tfe_database_user` must be null when `enable_passwordless_iam_db_auth` is `true` or when `is_secondary_region_deployment` is `true`."
-  }
-
-  # Must be set only when primary + password auth
-  validation {
-    condition = (
-      var.is_secondary_region_deployment ||
-      var.enable_passwordless_iam_db_auth ||
-      var.tfe_database_user != null
-    )
-    error_message = "`tfe_database_user` must be set when `enable_passwordless_iam_db_auth` is `false` and `is_secondary_region_deployment` is `false`."
+    error_message = "`tfe_database_user` must be set only when `is_secondary_region_deployment` is false and `enable_passwordless_iam_db_auth` is false; otherwise it must be null."
   }
 }
-
 
 variable "tfe_database_parameters" {
   type        = string
@@ -426,7 +409,7 @@ variable "postgres_disk_type" {
 
   validation {
     condition     = var.postgres_disk_type == "PD_SSD" || var.postgres_disk_type == "HYPERDISK_BALANCED"
-    error_message = "postgres_disk_type` must either be `PD_SSD` or `HYPERDISK_BALANCED`."
+    error_message = "`postgres_disk_type` must either be `PD_SSD` or `HYPERDISK_BALANCED`."
   }
 }
 
