@@ -9,23 +9,23 @@ There are three different types of secrets required for a TFE deployment:
 ### 1. Image Pull Secret
 
 Username: `terraform`<br>
-Password: your HashiCorp Terraform Enterprise license file (_e.g._ `terraform.hclic`)
+Password: your HashiCorp Terraform Enterprise license file (_e.g._, `terraform.hclic`)
 
 >📝 Note: If you prefer to host the TFE container image somewhere custom, then these values would change accordingly.
 
 ### 2. TFE Configuration Settings Secrets
 
-- `TFE_LICENSE` - the contents of your HashiCorp Terraform Enterprise license file (_e.g._ `cat terraform.hclic`)
-- `TFE_ENCRYPTION_PASSWORD` - generate this yourself; this is used to encrypt and decrypt TFE's embedded Vault root token and unseal key.
-- `TFE_DATABASE_PASSWORD` - obtain from Terraform module output named `tfe_database_password` or `tfe_database_password_base64` depending on the format you need.
-- `TFE_REDIS_PASSWORD` - obtain from Terraform module output named `tfe_redis_password` or `tfe_redis_password_base64` depending on the format you need.
+- `TFE_LICENSE` - the contents of your HashiCorp Terraform Enterprise license file (_e.g._, `cat terraform.hclic`). This value should be the same across primary and secondary region deployments.
+- `TFE_ENCRYPTION_PASSWORD` - generate this yourself; this is used to encrypt and decrypt TFE's embedded Vault root token and unseal key. This value should be the same across primary and secondary region deployments.
+- `TFE_DATABASE_PASSWORD` - obtain from Terraform module output named `tfe_database_password` or `tfe_database_password_base64` depending on the format you need. This value should be the same across primary and secondary region deployments.
+- `TFE_REDIS_PASSWORD` - obtain from Terraform module output named `tfe_redis_password` or `tfe_redis_password_base64` depending on the format you need. **This value is unique across primary and secondary region deployments.**
 
 
 >📝 Note: To show the value of a sensitive Terraform output, run `terraform output <output-name>`.
 
 ### 3. TLS Certificate and Private Key
 
-The TLS certificate and private key must correspond with the chosen fully qualified domain name (FQDN) of your TFE instance (_e.g._ `my-tfe.example.com`). You should have two separate files; one for the certificate (_e.g._ `cert.pem`) and one for the private key (_e.g._ `key.pem`). They must be in PEM format, and the private key must not be password protected.
+The TLS certificate and private key must correspond with the chosen fully qualified domain name (FQDN) of your TFE instance (_e.g._, `my-tfe.example.com`). You should have two separate files; one for the certificate (_e.g._, `cert.pem`) and one for the private key (_e.g._, `key.pem`). They must be in PEM format, and the private key must not be password protected.
 
 ## Creating the Secrets
 
@@ -58,7 +58,7 @@ kubectl create secret generic tfe-secrets \
   --from-literal=TFE_REDIS_PASSWORD=<TFE_REDIS_PASSWORD>
 ```
 
->📝 Note: Do not base64-encode these values; the `kubectl` command will do it for you.
+>📝 Note: Do not base64-encode these values; the `kubectl` command will automatically encode them.
 
 #### TLS secrets
 
@@ -74,7 +74,7 @@ kubectl create secret tls tfe-certs \
 
 ## Appendix
 
-For visual representation purposes only, here is a Kubernetes manifest of the required secrets for a TFE deployment (the secrets that were created in the previous section).
+For visual representation purposes only (as we do not recommend storing secrets or sensitive values on disk), here is a Kubernetes manifest of the required secrets for a TFE deployment (the secrets that were created in the previous section).
 
 ```yaml
 apiVersion: v1
@@ -106,8 +106,6 @@ metadata:
   namespace: <TFE_NAMESPACE>
 type: kubernetes.io/tls
 data:
-  tls.crt: |
-    <base64-encoded TFE certificate>
-  tls.key: |
-    <base64-encoded TFE private key>
+  tls.crt: <base64-encoded TFE certificate>
+  tls.key: <base64-encoded TFE private key>
 ```

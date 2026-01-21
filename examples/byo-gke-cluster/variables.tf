@@ -25,12 +25,38 @@ variable "friendly_name_prefix" {
     condition     = !strcontains(var.friendly_name_prefix, "tfe")
     error_message = "Value must not contain 'tfe' to avoid redundancy in naming conventions."
   }
+
+  validation {
+    condition     = length(var.friendly_name_prefix) <= 33
+    error_message = "`friendly_name_prefix` must be 33 characters or fewer."
+  }
 }
 
 variable "common_labels" {
   type        = map(string)
-  description = "Common labels to apply to all GCP resources."
+  description = "Common labels to apply to all GCP resources that support labels."
   default     = {}
+
+  validation {
+    condition = alltrue([
+      for k, v in var.common_labels :
+      can(regex("^[a-z][a-z0-9_-]{0,62}$", k)) &&
+      (v == "" || can(regex("^[a-z0-9_-]{0,63}$", v)))
+    ])
+    error_message = <<EOT
+Invalid GCP labels.
+
+- Label keys must start with a lowercase letter and contain only lowercase letters, numbers, dashes (-), and underscores (_)
+- Label values must be empty or contain only lowercase letters, numbers, dashes (-), and underscores (_)
+- Maximum length for both keys and values is 63 characters
+EOT
+  }
+}
+
+variable "is_secondary_region_deployment" {
+  type        = bool
+  description = "Whether this deployment represents the secondary (DR) region (TFE warm-standby instance)."
+  default     = false
 }
 
 #------------------------------------------------------------------------------
@@ -38,31 +64,7 @@ variable "common_labels" {
 #------------------------------------------------------------------------------
 variable "tfe_fqdn" {
   type        = string
-  description = "Fully qualified domain name of TFE instance. This name should eventually resolve to the TFE load balancer DNS name or IP address and will be what clients use to access TFE."
-}
-
-variable "tfe_http_port" {
-  type        = number
-  description = "HTTP port number that the TFE application will listen on within the TFE pods. It is recommended to leave this as the default value."
-  default     = 8080
-}
-
-variable "tfe_https_port" {
-  type        = number
-  description = "HTTPS port number that the TFE application will listen on within the TFE pods. It is recommended to leave this as the default value."
-  default     = 8443
-}
-
-variable "tfe_metrics_http_port" {
-  type        = number
-  description = "HTTP port number that the TFE metrics endpoint will listen on within the TFE pods. It is recommended to leave this as the default value."
-  default     = 9090
-}
-
-variable "tfe_metrics_https_port" {
-  type        = number
-  description = "HTTPS port number that the TFE metrics endpoint will listen on within the TFE pods. It is recommended to leave this as the default value."
-  default     = 9091
+  description = "Fully qualified domain name (FQDN) of TFE instance. This name should eventually resolve to the TFE load balancer DNS name or IP address and will be what clients use to access TFE."
 }
 
 variable "create_helm_overrides_file" {
@@ -109,7 +111,7 @@ variable "tfe_lb_subnet_name" {
 
   validation {
     condition     = var.create_tfe_lb_ip && var.tfe_lb_ip_address_type == "INTERNAL" ? var.tfe_lb_subnet_name != null : true
-    error_message = "Must provide a value when `create_tfe_lb_ip` is `true` and `tfe_lb_ip_address_type` is `INTERNAL`."
+    error_message = "`tfe_lb_subnet_name` is required when `create_tfe_lb_ip` is `true` and `tfe_lb_ip_address_type` is `INTERNAL`."
   }
 }
 
@@ -159,6 +161,12 @@ variable "cloud_dns_zone_name" {
 #------------------------------------------------------------------------------
 # IAM
 #------------------------------------------------------------------------------
+variable "tfe_gcp_svc_account_name" {
+  type        = string
+  description = "Name of GCP custom service account for TFE. Service account is used for GKE workload identity, GCS bucket permissions, and optional database authentication."
+  default     = "tfe-gcp-sa"
+}
+
 variable "enable_gke_workload_identity" {
   type        = bool
   description = "Boolean to enable GCP workload identity with GKE cluster."
@@ -167,7 +175,7 @@ variable "enable_gke_workload_identity" {
 
 variable "tfe_kube_namespace" {
   type        = string
-  description = "Name of Kubernetes namespace for TFE (created by Helm chart). Used to configure GCP workload identity with GKE."
+  description = "Name of Kubernetes namespace for TFE (created in post-deployment steps). Used to configure GCP workload identity with GKE."
   default     = "tfe"
 }
 
@@ -210,10 +218,22 @@ variable "gke_remove_default_node_pool" {
   default     = true
 }
 
+variable "gke_cluster_node_locations" {
+  type        = list(string)
+  description = "List of zones in which node pool nodes should be located."
+  default     = null
+}
+
 variable "gke_deletion_protection" {
   type        = bool
   description = "Boolean to enable deletion protection on GKE cluster."
   default     = false
+}
+
+variable "gke_enable_private_endpoint" {
+  type        = bool
+  description = "Boolean to enable private endpoint on GKE cluster."
+  default     = true
 }
 
 variable "gke_control_plane_cidr" {
@@ -242,28 +262,63 @@ variable "gke_http_load_balancing_disabled" {
 
 variable "gke_node_pool_name" {
   type        = string
-  description = "Name of node pool to create in GKE cluster."
+  description = "Name of TFE node pool to create in GKE cluster."
   default     = "tfe-gke-node-pool"
 }
 
 variable "gke_node_count" {
   type        = number
-  description = "Number of GKE nodes per zone"
+  description = "Number of GKE nodes per zone in TFE node pool."
   default     = 1
 }
 
 variable "gke_node_type" {
   type        = string
-  description = "Size/machine type of GKE nodes."
-  default     = "e2-standard-4"
+  description = "Size/machine type of GKE nodes in TFE node pool."
+  default     = "n4-standard-8"
+}
+
+variable "gke_node_disk_type" {
+  type        = string
+  description = "Type of disk for GKE nodes in TFE node pool."
+  default     = "hyperdisk-balanced"
+}
+
+variable "gke_node_disk_size_gb" {
+  type        = number
+  description = "Boot disk size in gigabytes (GB) for GKE nodes in TFE node pool."
+  default     = 100
 }
 
 #------------------------------------------------------------------------------
 # Cloud SQL for PostgreSQL
 #------------------------------------------------------------------------------
+variable "postgres_db_is_replica" {
+  type        = bool
+  description = "Whether the Cloud SQL for PostgreSQL database instance in this deployment is a read replica."
+  default     = false
+}
+
+variable "enable_passwordless_iam_db_auth" {
+  type        = bool
+  description = "Whether to enable passwordless IAM authentication to Cloud SQL for PostgreSQL database instance."
+  default     = false
+}
+
 variable "tfe_database_password_secret_version" {
   type        = string
-  description = "Name of PostgreSQL database password secret to retrieve from GCP Secret Manager."
+  description = "Name of Google Secret Manager secret version for the TFE database user password. Only used for primary region deployments when `enable_passwordless_iam_db_auth` is false."
+  default     = null
+
+  validation {
+    condition = (
+      (var.is_secondary_region_deployment || var.enable_passwordless_iam_db_auth)
+      ? var.tfe_database_password_secret_version == null
+      : var.tfe_database_password_secret_version != null
+    )
+
+    error_message = "`tfe_database_password_secret_version` must be set only when `is_secondary_region_deployment` is false and `enable_passwordless_iam_db_auth` is false; otherwise it must be null."
+  }
 }
 
 variable "tfe_database_name" {
@@ -272,10 +327,35 @@ variable "tfe_database_name" {
   default     = "tfe"
 }
 
+variable "postgres_master_instance_name" {
+  type        = string
+  description = "Name of TFE Cloud SQL for PostgreSQL database instance deployed in primary region. Used to create a read replica in the secondary region. Only set when `postgres_db_is_replica` is `true`."
+  default     = null
+
+  validation {
+    condition     = var.postgres_db_is_replica ? var.postgres_master_instance_name != null : true
+    error_message = "`postgres_master_instance_name` must be set when `postgres_db_is_replica` is `true`."
+  }
+
+  validation {
+    condition     = !var.postgres_db_is_replica ? var.postgres_master_instance_name == null : true
+    error_message = "`postgres_master_instance_name` must be `null` when `postgres_db_is_replica` is `false`."
+  }
+}
+
 variable "tfe_database_user" {
   type        = string
-  description = "Name of TFE PostgreSQL database user to create."
-  default     = "tfe"
+  description = "Name of TFE PostgreSQL database user to create. Only valid for primary region deployments when password auth is used."
+  default     = null
+
+  validation {
+    condition = (
+      (var.is_secondary_region_deployment || var.enable_passwordless_iam_db_auth)
+      ? var.tfe_database_user == null
+      : var.tfe_database_user != null
+    )
+    error_message = "`tfe_database_user` must be set only when `is_secondary_region_deployment` is false and `enable_passwordless_iam_db_auth` is false; otherwise it must be null."
+  }
 }
 
 variable "tfe_database_parameters" {
@@ -296,28 +376,118 @@ variable "postgres_availability_type" {
   default     = "REGIONAL"
 }
 
+variable "postgres_edition" {
+  type        = string
+  description = "Cloud SQL for PostgreSQL edition (ENTERPRISE or ENTERPRISE_PLUS)."
+  default     = "ENTERPRISE_PLUS"
+
+  validation {
+    condition = (
+      var.postgres_edition == "ENTERPRISE" ||
+      var.postgres_edition == "ENTERPRISE_PLUS"
+    )
+    error_message = "postgres_edition must be ENTERPRISE or ENTERPRISE_PLUS."
+  }
+}
+
 variable "postgres_machine_type" {
   type        = string
   description = "Machine size of Cloud SQL for PostgreSQL instance."
-  default     = "db-custom-4-16384"
+  default     = "db-perf-optimized-N-8"
+
+  validation {
+    condition = (
+      var.postgres_edition == "ENTERPRISE" ?
+      can(regex("^db-custom-", var.postgres_machine_type)) :
+      can(regex("^db-perf-optimized-", var.postgres_machine_type))
+    )
+    error_message = <<EOT
+postgres_machine_type is invalid for the selected postgres_edition.
+
+- ENTERPRISE requires a custom tier (db-custom-*)
+- ENTERPRISE_PLUS requires a predefined performance tier (db-perf-optimized-*)
+EOT
+  }
+}
+
+variable "postgres_disk_type" {
+  type        = string
+  description = "Type of data disk for Cloud SQL for PostgreSQL instance."
+  default     = "PD_SSD"
+
+  validation {
+    condition     = var.postgres_disk_type == "PD_SSD" || var.postgres_disk_type == "HYPERDISK_BALANCED"
+    error_message = "`postgres_disk_type` must either be `PD_SSD` or `HYPERDISK_BALANCED`."
+  }
 }
 
 variable "postgres_disk_size" {
   type        = number
   description = "Size in GB of PostgreSQL disk."
-  default     = 50
+  default     = 100
 }
 
-variable "postgres_backup_start_time" {
-  type        = string
-  description = "HH:MM time format indicating when daily automatic backups of Cloud SQL for PostgreSQL should run. Defaults to 12 AM (midnight) UTC."
-  default     = "00:00"
+variable "postgres_disk_autoresize" {
+  type        = bool
+  description = "Whether to enable autoresize on the Cloud SQL for PostgreSQL disk."
+  default     = true
 }
 
 variable "postgres_ssl_mode" {
   type        = string
   description = "Indicates whether to enforce TLS/SSL connections to the Cloud SQL for PostgreSQL instance."
   default     = "ENCRYPTED_ONLY"
+}
+
+variable "postgres_deletion_protection" {
+  type        = bool
+  description = "Whether to prevent the Cloud SQL for PostgreSQL instance from being destroyed."
+  default     = true
+}
+
+variable "postgres_backup_config" {
+  type = object({
+    enabled                        = bool   # Enable automated backups for the Cloud SQL for PostgreSQL instance
+    start_time                     = string # Daily backup start time in HH:MM format
+    point_in_time_recovery_enabled = bool   # Enable point-in-time recovery (PITR)
+    transaction_log_retention_days = number # Number of days to retain transaction logs for PITR
+    retained_backups               = number # Number of daily backups to retain
+  })
+  description = "Backup configuration for Cloud SQL for PostgreSQL instance."
+  default = {
+    enabled                        = true
+    start_time                     = "00:00"
+    point_in_time_recovery_enabled = true
+    transaction_log_retention_days = 14
+    retained_backups               = 30
+  }
+
+  validation {
+    condition = (
+      var.postgres_backup_config.enabled == false
+      ||
+      (
+        var.postgres_backup_config.retained_backups >= 1
+        &&
+        (
+          var.postgres_backup_config.point_in_time_recovery_enabled == false
+          ||
+          (
+            var.postgres_backup_config.transaction_log_retention_days >= 1
+            && var.postgres_backup_config.retained_backups > var.postgres_backup_config.transaction_log_retention_days
+          )
+        )
+      )
+    )
+    error_message = <<EOT
+Invalid Cloud SQL backup configuration.
+
+- If backups are enabled, `retained_backups` must be greater than zero
+- If point-in-time recovery is enabled:
+  - `transaction_log_retention_days` must be greater than zero
+  - `retained_backups` must be greater than `transaction_log_retention_days`
+EOT
+  }
 }
 
 variable "postgres_maintenance_window" {
@@ -367,16 +537,32 @@ variable "postgres_insights_config" {
   }
 }
 
+variable "cloud_sql_service_agent_email" {
+  type        = string
+  description = "Email address of the Google-managed Cloud SQL service agent (service account) for this GCP project (usually service-<PROJECT_ID>@gcp-sa-cloud-sql.iam.gserviceaccount.com). Only required when using a customer-managed encryption key (CMEK) to grant the service agent encrypt/decrypt permissions."
+  default     = null
+}
+
 variable "postgres_kms_keyring_name" {
   type        = string
-  description = "Name of Cloud KMS Key Ring that contains KMS key to use for Cloud SQL for PostgreSQL. Geographic location (region) of key ring must match the location of the TFE Cloud SQL for PostgreSQL database instance."
+  description = "Name of Cloud KMS Key Ring that contains KMS key specified in `postgres_kms_cmek_name`. Geographic location (region) of key ring must match the location of the TFE Cloud SQL for PostgreSQL database instance."
   default     = null
+
+  validation {
+    condition     = var.postgres_kms_keyring_name != null ? var.cloud_sql_service_agent_email != null : true
+    error_message = "When `postgres_kms_keyring_name` is set, a value must also be set for `cloud_sql_service_agent_email`."
+  }
 }
 
 variable "postgres_kms_cmek_name" {
   type        = string
   description = "Name of Cloud KMS customer managed encryption key (CMEK) to use for Cloud SQL for PostgreSQL database instance."
   default     = null
+
+  validation {
+    condition     = var.postgres_kms_cmek_name != null ? var.postgres_kms_keyring_name != null : true
+    error_message = "When `postgres_kms_cmek_name` is set, a value must also be set for `postgres_kms_keyring_name`."
+  }
 }
 
 #------------------------------------------------------------------------------
@@ -384,25 +570,80 @@ variable "postgres_kms_cmek_name" {
 #------------------------------------------------------------------------------
 variable "gcs_location" {
   type        = string
-  description = "Location of TFE GCS bucket to create."
+  description = "Location of TFE GCS bucket to create. Supports multi-region (US, EU, ASIA) and predefined dual-region (NAM4, EUR4, ASIA1)."
   default     = "US"
 
   validation {
-    condition     = contains(["US", "EU", "ASIA"], var.gcs_location)
-    error_message = "Supported values are 'US', 'EU', and 'ASIA'."
+    condition = contains(
+      ["US", "EU", "ASIA", "NAM4", "EUR4", "ASIA1"],
+      upper(var.gcs_location)
+    )
+    error_message = "Supported values are multi-region: US, EU, ASIA; and predefined dual-region: NAM4, EUR4, ASIA1."
   }
+}
+
+variable "gcs_custom_dual_region_locations" {
+  type        = list(string)
+  description = "Optional list of exactly two GCS region codes (e.g., [\"US-EAST1\", \"US-CENTRAL1\"]) to use dual-region custom placement. When set, `gcs_location` must be the corresponding multi-region (US, EU, or ASIA), and `gcs_location` must not be a predefined dual-region code (NAM4, EUR4, ASIA1)."
+  default     = null
+
+  validation {
+    condition = (
+      var.gcs_custom_dual_region_locations == null ||
+      (
+        length(var.gcs_custom_dual_region_locations) == 2 &&
+        var.gcs_custom_dual_region_locations[0] != var.gcs_custom_dual_region_locations[1]
+      )
+    )
+    error_message = "`gcs_custom_dual_region_locations` must be `null` or a list of exactly two distinct GCS region codes."
+  }
+
+  # If custom placement is used, location must be a multi-region umbrella.
+  validation {
+    condition = (
+      var.gcs_custom_dual_region_locations == null ||
+      contains(["US", "EU", "ASIA"], upper(var.gcs_location))
+    )
+    error_message = "When `gcs_custom_dual_region_locations` is set, `gcs_location` must be set to the corresponding multi-region code: `US`, `EU`, or `ASIA`."
+  }
+
+  # If custom placement is used, location must NOT be a predefined dual-region code.
+  validation {
+    condition = !(
+      var.gcs_custom_dual_region_locations != null &&
+      contains(["NAM4", "EUR4", "ASIA1"], upper(var.gcs_location))
+    )
+    error_message = "`gcs_custom_dual_region_locations` cannot be set when `gcs_location` is already a predefined dual-region code (NAM4, EUR4, ASIA1). Use the location code alone."
+  }
+}
+
+variable "tfe_gcs_bucket_name" {
+  type        = string
+  description = "Name of TFE GCS bucket that was created in the primary region TFE deployment. Only set when `is_secondary_region_deployment` is `true`."
+  default     = null
 }
 
 variable "gcs_storage_class" {
   type        = string
   description = "Storage class of TFE GCS bucket."
-  default     = "MULTI_REGIONAL"
+  default     = "STANDARD"
 }
 
 variable "gcs_uniform_bucket_level_access" {
   type        = bool
   description = "Boolean to enable uniform bucket level access on TFE GCS bucket."
   default     = true
+}
+
+variable "gcs_public_access_prevention" {
+  type        = string
+  description = "Prevent public access to TFE GCS bucket."
+  default     = "enforced"
+
+  validation {
+    condition     = var.gcs_public_access_prevention == "enforced" || var.gcs_public_access_prevention == "inherited"
+    error_message = "`gcs_public_access_prevention` must either be `enforced` or `inherited`."
+  }
 }
 
 variable "gcs_force_destroy" {
@@ -415,6 +656,29 @@ variable "gcs_versioning_enabled" {
   type        = bool
   description = "Boolean to enable versioning on TFE GCS bucket."
   default     = true
+}
+
+variable "gcs_rpo" {
+  type        = string
+  description = "The recovery point objective for cross-region replication of the GCS bucket."
+  default     = "DEFAULT"
+
+  validation {
+    condition     = var.gcs_rpo == "DEFAULT" || var.gcs_rpo == "ASYNC_TURBO"
+    error_message = "`gcs_rpo` must be either `DEFAULT` or `ASYNC_TURBO`."
+  }
+
+  validation {
+    condition = (
+      var.gcs_rpo != "ASYNC_TURBO" ||
+      (
+        # dual-region is true if predefined dual-region code OR custom placement list is set
+        contains(["NAM4", "EUR4", "ASIA1"], upper(var.gcs_location)) ||
+        var.gcs_custom_dual_region_locations != null
+      )
+    )
+    error_message = "`gcs_rpo` can be set to `ASYNC_TURBO` only for dual-region buckets (predefined: NAM4/EUR4/ASIA1, or custom placement via `gcs_custom_dual_region_locations`)."
+  }
 }
 
 variable "gcs_kms_keyring_name" {

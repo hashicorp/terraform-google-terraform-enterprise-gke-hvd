@@ -1,0 +1,58 @@
+# Copyright IBM Corp. 2024, 2025
+# SPDX-License-Identifier: MPL-2.0
+
+terraform {
+  required_providers {
+    google = {
+      source  = "hashicorp/google"
+      version = "~> 7.14"
+    }
+  }
+}
+
+provider "google" {
+  project = var.project_id
+  region  = var.region
+}
+
+module "tfe" {
+  source = "../.."
+
+  # --- Common --- #
+  project_id                     = var.project_id
+  friendly_name_prefix           = var.friendly_name_prefix
+  is_secondary_region_deployment = var.is_secondary_region_deployment
+  common_labels                  = var.common_labels
+
+  # --- TFE config settings --- #
+  tfe_fqdn                   = var.tfe_fqdn
+  create_helm_overrides_file = var.create_helm_overrides_file
+
+  # --- IAM --- #
+  tfe_gcp_svc_account_name = var.tfe_gcp_svc_account_name
+
+  # --- Networking --- #
+  vpc_name               = var.vpc_name
+  create_tfe_lb_ip       = var.create_tfe_lb_ip
+  tfe_lb_ip_address_type = var.tfe_lb_ip_address_type
+  tfe_lb_subnet_name     = var.tfe_lb_subnet_name
+  tfe_lb_ip_address      = var.tfe_lb_ip_address
+  gke_subnet_name        = var.gke_subnet_name
+
+  # --- DNS (optional) --- #
+  create_tfe_cloud_dns_record = var.create_tfe_cloud_dns_record
+  cloud_dns_zone_name         = var.cloud_dns_zone_name
+
+  # --- Database --- #
+  tfe_database_user                    = var.tfe_database_user
+  tfe_database_password_secret_version = var.tfe_database_password_secret_version
+  postgres_db_is_replica               = var.postgres_db_is_replica
+  postgres_master_instance_name        = var.postgres_master_instance_name
+  postgres_deletion_protection         = var.postgres_deletion_protection
+
+  # --- GCS bucket --- #
+  gcs_location                     = var.gcs_location
+  gcs_custom_dual_region_locations = var.gcs_custom_dual_region_locations
+  gcs_rpo                          = var.gcs_rpo
+  gcs_force_destroy                = var.gcs_force_destroy
+}

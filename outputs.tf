@@ -11,7 +11,7 @@ output "tfe_service_account_key" {
 }
 
 output "tfe_service_account_email" {
-  value       = try(google_service_account.tfe.email, null)
+  value       = try(google_service_account.tfe[0].email, null)
   description = "TFE GCP service account email address. Only produced when `enable_gke_workload_identity` is `true`."
 }
 
@@ -39,9 +39,9 @@ output "gke_cluster_name" {
 #------------------------------------------------------------------------------
 # Database
 #------------------------------------------------------------------------------
-output "tfe_database_instance_id" {
+output "postgres_db_instance_id" {
   value       = google_sql_database_instance.tfe.id
-  description = "ID of TFE Cloud SQL for PostgreSQL database instance."
+  description = "Name (ID) of TFE Cloud SQL for PostgreSQL database instance in this region."
 }
 
 output "tfe_database_host" {
@@ -49,14 +49,24 @@ output "tfe_database_host" {
   description = "IP address and port of TFE Cloud SQL for PostgreSQL database instance."
 }
 
+output "tfe_database_name" {
+  value       = var.tfe_database_name
+  description = "TFE PostgreSQL database name."
+}
+
+output "tfe_database_user" {
+  value       = local.tfe_database_username
+  description = "TFE PostgreSQL database username."
+}
+
 output "tfe_database_password" {
-  value       = data.google_secret_manager_secret_version.tfe_database_password.secret_data
+  value       = try(data.google_secret_manager_secret_version.tfe_database_password[0].secret_data, null)
   description = "TFE PostgreSQL database password."
   sensitive   = true
 }
 
 output "tfe_database_password_base64" {
-  value       = base64encode(data.google_secret_manager_secret_version.tfe_database_password.secret_data)
+  value       = try(base64encode(data.google_secret_manager_secret_version.tfe_database_password[0].secret_data), null)
   description = "Base64-encoded TFE PostgreSQL database password."
   sensitive   = true
 }
@@ -65,7 +75,7 @@ output "tfe_database_password_base64" {
 # Object storage
 #------------------------------------------------------------------------------
 output "tfe_object_storage_google_bucket" {
-  value       = google_storage_bucket.tfe.id
+  value       = try(google_storage_bucket.tfe[0].id, null)
   description = "Name of TFE GCS bucket."
 }
 
