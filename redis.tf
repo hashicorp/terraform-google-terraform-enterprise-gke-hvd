@@ -1,4 +1,4 @@
-# Copyright (c) HashiCorp, Inc.
+# Copyright IBM Corp. 2024, 2026
 # SPDX-License-Identifier: MPL-2.0
 
 #------------------------------------------------------------------------------
@@ -17,13 +17,11 @@ resource "google_redis_instance" "tfe" {
   customer_managed_key    = var.redis_kms_cmek_name != null ? data.google_kms_crypto_key.redis[0].id : null
   labels                  = var.common_labels
 
-  depends_on = [
-    google_kms_crypto_key_iam_binding.redis_sa_cmek
-  ]
+  depends_on = [google_kms_crypto_key_iam_member.redis_cmek]
 }
 
 #------------------------------------------------------------------------------
-# KMS Redis customer managed encryption key (CMEK)
+# KMS customer managed encryption key (CMEK) + IAM
 #------------------------------------------------------------------------------
 data "google_kms_key_ring" "redis" {
   count = var.redis_kms_keyring_name != null ? 1 : 0
@@ -38,3 +36,17 @@ data "google_kms_crypto_key" "redis" {
   name     = var.redis_kms_cmek_name
   key_ring = data.google_kms_key_ring.redis[0].id
 }
+
+// Construct Redis service account email string since there is no data source
+locals {
+  redis_service_account_email = "service-${data.google_project.current.number}@cloud-redis.iam.gserviceaccount.com"
+}
+
+resource "google_kms_crypto_key_iam_member" "redis_cmek" {
+  count = var.redis_kms_keyring_name != null && var.redis_kms_cmek_name != null ? 1 : 0
+
+  crypto_key_id = data.google_kms_crypto_key.redis[0].id
+  role          = "roles/cloudkms.cryptoKeyEncrypterDecrypter"
+  member        = "serviceAccount:${local.redis_service_account_email}"
+}
+

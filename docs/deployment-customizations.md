@@ -1,16 +1,21 @@
 # Deployment Customizations
 
-This doc contains various deployment customizations as it relates to creating your TFE infrastructure, and their corresponding module input variables that you may additionally set to meet your own requirements where the module default values do not suffice. That said, all of the module input variables on this page are optional.
+This document describes optional deployment customizations for Terraform Enterprise (TFE) and the corresponding module input variables you can use to tailor the infrastructure to your requirements when the module defaults are not sufficient.
 
 ## GKE
 
-If you want to configure this module to create an GKE cluster dedicated to running TFE:
+By default, this module assumes you are bringing an existing GKE cluster to run TFE.
+
+To have the module create a dedicated GKE cluster instead, set:
 
 ```hcl
 create_gke_cluster = true
+gke_cluster_name   = "<tfe-gke-cluster-name>"
+...
+...
 ```
 
-If you are bringing your own GKE cluster (module default):
+To bring your own GKE cluster (module default):
 
 ```hcl
 create_gke_cluster = false
@@ -43,3 +48,42 @@ tfe_lb_subnet_name     = null
 tfe_lb_ip_address      = null
 tfe_lb_ip_address_type = "EXTERNAL"
 ```
+
+## KMS customer-managed encryption keys (CMEK)
+
+This module supports the ability to pass in a Google customer-managed encryption key (CMEK) for each of the following TFE data storage components:
+ - Cloud SQL for PostgreSQL
+ - GCS bucket (object storage)
+ - Redis
+
+### Cloud SQL
+
+Using a CMEK for Cloud SQL requires providing the **existing** Cloud SQL service agent email for the GCP project so the module can grant the service agent encrypt/decrypt permissions on the KMS key.
+
+```hcl
+cloud_sql_service_agent_email = "<service-<PROJECT_ID>@gcp-sa-cloud-sql.iam.gserviceaccount.com>"
+postgres_kms_keyring_name     = "<cloud-sql-keyring-name>"
+postgres_kms_cmek_name        = "<cloud-sql-crypto-key-name>"
+```
+
+The Cloud SQL keyring location must match the location of the Cloud SQL instance (from `var.region`).
+
+### GCS bucket (object storage)
+
+```hcl
+gcs_kms_keyring_name = "<gcs-keyring-name>"
+gcs_kms_cmek_name    = "<gcs-crypto-key-name>"
+```
+
+The GCS keyring location must match the location of the GCS bucket (from `var.gcs_location`).
+
+### Redis
+
+```hcl
+redis_kms_keyring_name = "<redis-keyring-name>"
+redis_kms_cmek_name    = "<redis-crypto-key-name>"
+```
+
+The Redis keyring location must match the location of the Redis instance (from `var.region`).
+
+>📝 Note: the same key may be used for Cloud SQL and Redis since the locations should match.
