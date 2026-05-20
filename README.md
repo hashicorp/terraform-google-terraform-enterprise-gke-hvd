@@ -203,7 +203,7 @@ Please note that there is no official Service Level Agreement (SLA) for support 
 ## Requirements
 
 | Name | Version |
-|------|---------|
+| ---- | ------- |
 | <a name="requirement_terraform"></a> [terraform](#requirement\_terraform) | >= 1.9 |
 | <a name="requirement_google"></a> [google](#requirement\_google) | ~> 7.14 |
 | <a name="requirement_local"></a> [local](#requirement\_local) | >= 2.5.1 |
@@ -212,7 +212,7 @@ Please note that there is no official Service Level Agreement (SLA) for support 
 ## Providers
 
 | Name | Version |
-|------|---------|
+| ---- | ------- |
 | <a name="provider_google"></a> [google](#provider\_google) | ~> 7.14 |
 | <a name="provider_local"></a> [local](#provider\_local) | >= 2.5.1 |
 | <a name="provider_random"></a> [random](#provider\_random) | >= 3.6.2 |
@@ -220,7 +220,7 @@ Please note that there is no official Service Level Agreement (SLA) for support 
 ## Resources
 
 | Name | Type |
-|------|------|
+| ---- | ---- |
 | [google_compute_address.tfe_lb](https://registry.terraform.io/providers/hashicorp/google/latest/docs/resources/compute_address) | resource |
 | [google_container_cluster.tfe](https://registry.terraform.io/providers/hashicorp/google/latest/docs/resources/container_cluster) | resource |
 | [google_container_node_pool.tfe](https://registry.terraform.io/providers/hashicorp/google/latest/docs/resources/container_node_pool) | resource |
@@ -270,7 +270,7 @@ Please note that there is no official Service Level Agreement (SLA) for support 
 ## Inputs
 
 | Name | Description | Type | Default | Required |
-|------|-------------|------|---------|:--------:|
+| ---- | ----------- | ---- | ------- | :------: |
 | <a name="input_friendly_name_prefix"></a> [friendly\_name\_prefix](#input\_friendly\_name\_prefix) | Prefix used to name all GCP resources uniquely. It is most common to use either an environment (e.g. 'sandbox', 'prod'), a team name, or a project name here. | `string` | n/a | yes |
 | <a name="input_project_id"></a> [project\_id](#input\_project\_id) | ID of GCP project to deploy TFE in. | `string` | n/a | yes |
 | <a name="input_tfe_fqdn"></a> [tfe\_fqdn](#input\_tfe\_fqdn) | Fully qualified domain name (FQDN) of TFE instance. This name should eventually resolve to the TFE load balancer DNS name or IP address and will be what clients use to access TFE. | `string` | n/a | yes |
@@ -283,7 +283,7 @@ Please note that there is no official Service Level Agreement (SLA) for support 
 | <a name="input_create_tfe_cloud_dns_record"></a> [create\_tfe\_cloud\_dns\_record](#input\_create\_tfe\_cloud\_dns\_record) | Boolean to create Google Cloud DNS record for TFE using the value of `tfe_fqdn` for the record name. | `bool` | `false` | no |
 | <a name="input_create_tfe_lb_ip"></a> [create\_tfe\_lb\_ip](#input\_create\_tfe\_lb\_ip) | Boolean to create a static IP address for TFE load balancer (load balancer is created/managed by Helm/Kubernetes). | `bool` | `true` | no |
 | <a name="input_enable_gke_workload_identity"></a> [enable\_gke\_workload\_identity](#input\_enable\_gke\_workload\_identity) | Boolean to enable GCP workload identity with GKE cluster. | `bool` | `true` | no |
-| <a name="input_enable_passwordless_iam_db_auth"></a> [enable\_passwordless\_iam\_db\_auth](#input\_enable\_passwordless\_iam\_db\_auth) | Whether to enable passwordless IAM authentication to Cloud SQL for PostreSQL database instance. | `bool` | `false` | no |
+| <a name="input_enable_passwordless_iam_db_auth"></a> [enable\_passwordless\_iam\_db\_auth](#input\_enable\_passwordless\_iam\_db\_auth) | Whether to enable passwordless IAM authentication to Cloud SQL for PostgreSQL database instance. | `bool` | `false` | no |
 | <a name="input_gcs_custom_dual_region_locations"></a> [gcs\_custom\_dual\_region\_locations](#input\_gcs\_custom\_dual\_region\_locations) | Optional list of exactly two GCS region codes (e.g., ["US-EAST1", "US-CENTRAL1"]) to use dual-region custom placement. When set, `gcs_location` must be the corresponding multi-region (US, EU, or ASIA), and `gcs_location` must not be a predefined dual-region code (NAM4, EUR4, ASIA1). | `list(string)` | `null` | no |
 | <a name="input_gcs_force_destroy"></a> [gcs\_force\_destroy](#input\_gcs\_force\_destroy) | Boolean indicating whether to allow force destroying the TFE GCS bucket. GCS bucket can be destroyed if it is not empty when `true`. | `bool` | `false` | no |
 | <a name="input_gcs_kms_cmek_name"></a> [gcs\_kms\_cmek\_name](#input\_gcs\_kms\_cmek\_name) | Name of Cloud KMS customer managed encryption key (CMEK) to use for TFE GCS bucket encryption. | `string` | `null` | no |
@@ -314,7 +314,7 @@ Please note that there is no official Service Level Agreement (SLA) for support 
 | <a name="input_is_secondary_region_deployment"></a> [is\_secondary\_region\_deployment](#input\_is\_secondary\_region\_deployment) | Whether this deployment represents the secondary (DR) region (TFE warm-standby instance). | `bool` | `false` | no |
 | <a name="input_postgres_availability_type"></a> [postgres\_availability\_type](#input\_postgres\_availability\_type) | Availability type of Cloud SQL for PostgreSQL instance. | `string` | `"REGIONAL"` | no |
 | <a name="input_postgres_backup_config"></a> [postgres\_backup\_config](#input\_postgres\_backup\_config) | Backup configuration for Cloud SQL for PostgreSQL instance. | <pre>object({<br/>    enabled                        = bool   # Enable automated backups for the Cloud SQL for PostgreSQL instance<br/>    start_time                     = string # Daily backup start time in HH:MM format<br/>    point_in_time_recovery_enabled = bool   # Enable point-in-time recovery (PITR)<br/>    transaction_log_retention_days = number # Number of days to retain transaction logs for PITR<br/>    retained_backups               = number # Number of daily backups to retain<br/>  })</pre> | <pre>{<br/>  "enabled": true,<br/>  "point_in_time_recovery_enabled": true,<br/>  "retained_backups": 30,<br/>  "start_time": "00:00",<br/>  "transaction_log_retention_days": 14<br/>}</pre> | no |
-| <a name="input_postgres_db_is_replica"></a> [postgres\_db\_is\_replica](#input\_postgres\_db\_is\_replica) | Whether the Cloud SQL for PostreSQL database instance in this deployment is a read replica. | `bool` | `false` | no |
+| <a name="input_postgres_db_is_replica"></a> [postgres\_db\_is\_replica](#input\_postgres\_db\_is\_replica) | Whether the Cloud SQL for PostgreSQL database instance in this deployment is a read replica. | `bool` | `false` | no |
 | <a name="input_postgres_deletion_protection"></a> [postgres\_deletion\_protection](#input\_postgres\_deletion\_protection) | Whether to prevent the Cloud SQL for PostgreSQL instance from being destroyed. | `bool` | `true` | no |
 | <a name="input_postgres_disk_autoresize"></a> [postgres\_disk\_autoresize](#input\_postgres\_disk\_autoresize) | Whether to enable autoresize on the Cloud SQL for PostgreSQL disk. | `bool` | `true` | no |
 | <a name="input_postgres_disk_size"></a> [postgres\_disk\_size](#input\_postgres\_disk\_size) | Size in GB of PostgreSQL disk. | `number` | `100` | no |
@@ -328,7 +328,6 @@ Please note that there is no official Service Level Agreement (SLA) for support 
 | <a name="input_postgres_master_instance_name"></a> [postgres\_master\_instance\_name](#input\_postgres\_master\_instance\_name) | Name of TFE Cloud SQL for PostgreSQL database instance deployed in primary region. Used to create a read replica in the secondary region. Only set when `postgres_db_is_replica` is `true`. | `string` | `null` | no |
 | <a name="input_postgres_ssl_mode"></a> [postgres\_ssl\_mode](#input\_postgres\_ssl\_mode) | Indicates whether to enforce TLS/SSL connections to the Cloud SQL for PostgreSQL instance. | `string` | `"ENCRYPTED_ONLY"` | no |
 | <a name="input_postgres_version"></a> [postgres\_version](#input\_postgres\_version) | PostgreSQL version to use. | `string` | `"POSTGRES_16"` | no |
-| <a name="input_project_id"></a> [project\_id](#input\_project\_id) | ID of GCP project to deploy TFE in. | `string` | n/a | yes |
 | <a name="input_redis_auth_enabled"></a> [redis\_auth\_enabled](#input\_redis\_auth\_enabled) | Boolean to enable authentication on Redis instance. | `bool` | `true` | no |
 | <a name="input_redis_connect_mode"></a> [redis\_connect\_mode](#input\_redis\_connect\_mode) | Network connection mode for Redis instance. | `string` | `"PRIVATE_SERVICE_ACCESS"` | no |
 | <a name="input_redis_kms_cmek_name"></a> [redis\_kms\_cmek\_name](#input\_redis\_kms\_cmek\_name) | Name of Cloud KMS customer managed encryption key (CMEK) to use for TFE Redis instance. | `string` | `null` | no |
@@ -340,7 +339,7 @@ Please note that there is no official Service Level Agreement (SLA) for support 
 | <a name="input_tfe_cloud_dns_record_ip_address"></a> [tfe\_cloud\_dns\_record\_ip\_address](#input\_tfe\_cloud\_dns\_record\_ip\_address) | IP address of DNS record for TFE. Only valid when `create_cloud_dns_record` is `true` and `create_tfe_lb_ip` is `false`. | `string` | `null` | no |
 | <a name="input_tfe_database_name"></a> [tfe\_database\_name](#input\_tfe\_database\_name) | Name of TFE PostgreSQL database to create. | `string` | `"tfe"` | no |
 | <a name="input_tfe_database_parameters"></a> [tfe\_database\_parameters](#input\_tfe\_database\_parameters) | Additional parameters to pass into the TFE database settings for the PostgreSQL connection URI. | `string` | `"sslmode=require"` | no |
-| <a name="input_tfe_database_password_secret_version"></a> [tfe\_database\_password\_secret\_version](#input\_tfe\_database\_password\_secret\_version) | Name of Google Secret Manager secret version for the PostgreSQL password. Only used for primary region deployments when `enable_passwordless_iam_db_auth` is false. | `string` | `null` | no |
+| <a name="input_tfe_database_password_secret_version"></a> [tfe\_database\_password\_secret\_version](#input\_tfe\_database\_password\_secret\_version) | Name of Google Secret Manager secret version for the TFE database user password. Only used for primary region deployments when `enable_passwordless_iam_db_auth` is false. | `string` | `null` | no |
 | <a name="input_tfe_database_user"></a> [tfe\_database\_user](#input\_tfe\_database\_user) | Name of TFE PostgreSQL database user to create. Only valid for primary region deployments when password auth is used. | `string` | `null` | no |
 | <a name="input_tfe_gcp_svc_account_name"></a> [tfe\_gcp\_svc\_account\_name](#input\_tfe\_gcp\_svc\_account\_name) | Name of GCP custom service account for TFE. Service account is used for GKE workload identity, GCS bucket permissions, and optional database authentication. | `string` | `"tfe-gcp-sa"` | no |
 | <a name="input_tfe_gcs_bucket_name"></a> [tfe\_gcs\_bucket\_name](#input\_tfe\_gcs\_bucket\_name) | Name of TFE GCS bucket that was created in the primary region TFE deployment. Only set when `is_secondary_region_deployment` is `true`. | `string` | `null` | no |
@@ -354,7 +353,7 @@ Please note that there is no official Service Level Agreement (SLA) for support 
 ## Outputs
 
 | Name | Description |
-|------|-------------|
+| ---- | ----------- |
 | <a name="output_gke_cluster_name"></a> [gke\_cluster\_name](#output\_gke\_cluster\_name) | Name of TFE GKE cluster. |
 | <a name="output_postgres_db_instance_id"></a> [postgres\_db\_instance\_id](#output\_postgres\_db\_instance\_id) | Name (ID) of TFE Cloud SQL for PostgreSQL database instance in this region. |
 | <a name="output_redis_server_ca_certs"></a> [redis\_server\_ca\_certs](#output\_redis\_server\_ca\_certs) | CA certificate of TFE Redis instance. Add this to your TFE CA bundle. |
