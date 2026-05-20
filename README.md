@@ -64,7 +64,7 @@ If you plan to create a new GKE cluster using this module, then you may skip thi
 
 1. Create/configure/validate the applicable [prerequisites](#prerequisites).
 
-2. Nested within the [examples](https://github.com/hashicorp/terraform-google-terraform-enterprise-gke-hvd/tree/main/examples/) directory are subdirectories that contain ready-made Terraform configurations of example scenarios for how to call and deploy this module. To get started, choose an example scenario. If you are starting without an existing GKE cluster, then you should select the [new-gke](examples/new-gke) example scenario.
+2. Nested within the [examples](https://github.com/hashicorp/terraform-google-terraform-enterprise-gke-hvd/tree/main/examples/) directory are subdirectories that contain ready-made Terraform configurations of example scenarios for how to call and deploy this module. To get started, choose an example scenario. If you are starting without an existing GKE cluster, then you should select the [new-gke](https://github.com/hashicorp/terraform-google-terraform-enterprise-gke-hvd/tree/main/examples/new-gke) example scenario.
 
 3. Copy all of the Terraform files from your example scenario of choice into a new destination directory to create your Terraform configuration that will manage your TFE deployment. If you are not sure where to create this new directory, it is common for users to create an `environments/` directory at the root of this repo (once you have cloned it down locally), and then a subdirectory for each TFE instance deployment, like so:
 
@@ -185,7 +185,7 @@ Below are links to various docs related to the customization and management of y
 - [TFE Version Upgrades](https://github.com/hashicorp/terraform-google-terraform-enterprise-gke-hvd/tree/main/docs/tfe-version-upgrades.md)
 - [TFE TLS Certificate Rotation](https://github.com/hashicorp/terraform-google-terraform-enterprise-gke-hvd/tree/main/docs/tfe-cert-rotation.md)
 - [TFE Configuration Settings](https://github.com/hashicorp/terraform-google-terraform-enterprise-gke-hvd/tree/main/docs/tfe-config-settings.md)
-- [TFE Kubernetes Secrets](https://github.com/hashicorp/terraform-google-terraform-enterprise-gke-hvd/tree/main/docs-kubernetes-secrets.md)
+- [TFE Kubernetes Secrets](https://github.com/hashicorp/terraform-google-terraform-enterprise-gke-hvd/tree/main/docs/kubernetes-secrets.md)
 
 ## Module support
 
