@@ -26,6 +26,8 @@ Terraform module aligned with HashiCorp Validated Designs (HVD) to deploy Terraf
   - It is strongly recommended that this subnet has **Private Google Access** enabled to allow private access from the GKE cluster to the Google Cloud Storage (GCS) bucket.
 - Static IP address for TFE load balancer (to be used by either a Kubernetes `Service` of type `LoadBalancer` or an ingress controller)
 - Chosen fully qualified domain name (FQDN) for TFE instance (_e.g._, `tfe-prod.gcp.example.com`)
+- Do not deploy on public subnets because it is risky and not secure; deploy on private subnets 
+    - Here is a help guide distinguishing between private and public subnets [IP addressing for your VPCs and subnets](https://docs.cloud.google.com/vpc/docs/subnets)
 
 #### Firewall rules / network traffic requirements
 
