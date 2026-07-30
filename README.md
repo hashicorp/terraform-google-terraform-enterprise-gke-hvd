@@ -142,7 +142,10 @@ The next phase of the deployment is the application layer (referred to as the **
 13. Install the TFE application via `helm`:
 
     ```shell
-    helm install terraform-enterprise hashicorp/terraform-enterprise --namespace <TFE_NAMESPACE> --values <TFE_OVERRIDES_FILE>
+    helm install terraform-enterprise hashicorp/terraform-enterprise \
+    --namespace <TFE_NAMESPACE> \
+    --values <TFE_OVERRIDES_FILE> \
+    --set serviceAccount.annotations."iam\.gke\.io\/gcp-service-account"=\$(terraform output -raw tfe_service_account_email)
     ```
 
 14. Verify the TFE pod(s) are starting successfully:
